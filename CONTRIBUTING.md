@@ -1,95 +1,113 @@
-# Adding your client to the gallery
+# So you've built a thing
 
-One pull request, one directory, and no build step. If the checks pass, your listing
-appears on [meddlingidiot.com/greenlight/gallery](https://meddlingidiot.com/greenlight/gallery)
-within half an hour of merge — the site re-reads this repository on a schedule, so there is
-nothing to deploy and nothing to wait for beyond that.
+Congratulations. You looked at a perfectly good build indicator, thought "this needs more
+cars", and now here you are. This is the right place.
 
-## What gets reviewed, and what does not
+One pull request, one directory, no build step. If the checks pass, your listing shows up on
+[meddlingidiot.com/greenlight/gallery](https://meddlingidiot.com/greenlight/gallery) within
+half an hour of merge, because the site re-reads this repository on a timer like some kind
+of animal. There is nothing to deploy. There is nothing to wait for. Go and have a biscuit.
 
-**Reviewed: the listing.** Does it describe a real client, does it point at a repository
-that exists, is the licence stated, are the images yours to publish, is the description
-something a stranger can understand.
+## What gets reviewed (spoiler: not your code)
 
-**Not reviewed: your code.** Nobody here reads it for correctness, quality, or safety.
-Being listed is not an endorsement, a security review, or a promise that the thing works
-on your machine — it means somebody wrote a client and filled in a form honestly. That
-limit is deliberate and permanent. Treat anything you download from here the way you would
-treat any other stranger's executable.
+**Reviewed: the listing.** Does it describe a real client. Does the repository exist. Is the
+licence stated. Are the images yours. Can a stranger read the description and understand
+what the thing does.
 
-If you find a listing that is malicious or misrepresented, open an issue and it comes down.
+**Not reviewed: literally your entire codebase.** Nobody here is reading it for correctness,
+quality, elegance, or whether it quietly mines cryptocurrency on the side. Being listed is
+not an endorsement, not a security review, and not a promise that it works on anything other
+than the machine you wrote it on. It means somebody built a client and filled in a form
+honestly.
 
-## The IP rule, in one line
+That limit is deliberate and permanent, and no, we're not going to "just have a quick look"
+at yours. Download things from here with the same enthusiasm you'd apply to any other
+stranger's executable — which is to say, some, but not unlimited.
+
+Spot a listing that's malicious or lying? Open an issue. It comes down. No ceremony.
+
+## The IP rule, which is one sentence long
 
 **Original assets only — describe by function, not by franchise.**
 
-Your screenshots, your drawings, or artwork you have a licence to publish. If your client
-draws somebody else's characters, ships their logo, or borrows their music, it cannot be
-listed here — no matter how good it looks. Describing what your client *does* is always
-fine; the rule is about the images and the name, not the idea.
+Your screenshots, your drawings, or art you actually have a licence to publish. If your
+client renders somebody else's beloved cartoon mouse, ships their logo, or plays eight bars
+of their theme tune, it cannot go up here. It does not matter how good it looks. It looks
+especially good in the cease-and-desist.
 
-`assets.attestation` is where you say which applies:
+Describing what your client *does* is always fine. The rule is about the pixels and the
+name, not the idea.
 
-- `original` — you made these, or they are screenshots of your own app.
+`assets.attestation` is where you say which one applies:
+
+- `original` — you made these, or they're screenshots of your own app.
 - `licensed` — you have the right to publish them, and `attestation-note` says where they
-  came from and under what licence.
+  came from and under what terms.
 
-There is no third option. A listing that cannot honestly claim one of those two is a
-listing that cannot go up.
+There is no third option. There is no `assets.attestation: "probably fine"`. A listing that
+can't honestly claim one of those two is a listing that doesn't go up, and we will both be
+much happier having established that now.
 
-## Adding a listing
+## Actually adding your listing
 
-1. Fork this repository.
-2. Create `listings/your-slug/`. The slug is the gallery URL, lowercase and hyphenated, and
-   it is permanent once merged — changing it later breaks links.
+1. Fork this repository. You know how to do this.
+2. Create `listings/your-slug/`. Lowercase, hyphenated, and **permanent once merged** —
+   it's the gallery URL, so picking a slug you'll resent in six months is a choice you get
+   to live with.
 3. Write `listings/your-slug/listing.json`. Copy [`example/listing.json`](example/listing.json),
-   which is a complete, annotated entry, and point `$schema` at the schema so your editor
-   offers completion.
+   which is a complete annotated entry, and point `$schema` at the schema so your editor
+   does the remembering for you.
 4. Put the assets in the same directory:
-   - **`poster`** — required. A still, at most **1 MB**, `.webp`, `.png` or `.jpg`. This is
-     the card, and what shows before the clip loads. Landscape, roughly 16:9.
-   - **`clip`** — optional. A silent `.mp4`, at most **3 MB** and **under 15 seconds**.
-     Cards autoplay it muted and looping, so it wants to be a loop, not a trailer.
-5. Run the checks locally:
+   - **`poster`** — required. A still, **1 MB tops**, `.webp`, `.png` or `.jpg`. Landscape,
+     roughly 16:9. This is the card. It is doing more work than your description, sorry.
+   - **`clip`** — optional. A silent `.mp4`, **3 MB tops**, **under 15 seconds**. Cards
+     autoplay it muted on a loop, so make it a loop. Nobody wants your trailer. Nobody
+     wants anybody's trailer.
+5. Run the checks yourself, before CI does it in front of everyone:
 
 ```bash
 pip install jsonschema
 python tools/validate.py
 ```
 
-6. Open a pull request. CI runs the same checks.
+6. Open the pull request.
 
-## The two fields people skip, and why they are required
+## The two fields everyone tries to skip
 
-**`greenlight-api`** — which local-API protocol version your client targets (`1` today).
-Without it, the day the protocol moves to 2 there is no way to tell which listings still
-work without writing to every author individually. It cannot be added retroactively, so it
-is required from the first listing.
+Yes, they're required. Yes, from the very first listing. Here's why, so you can be annoyed
+with an informed opinion rather than a vague one.
 
-**`last-verified`** — the date you last ran your client, and the Greenlight version you ran
-it against. This is what stops the gallery quietly filling with entries that broke two
-releases ago. Update it when you touch your listing; a weekly job flags listings whose
-repositories have been archived.
+**`greenlight-api`** — which local-API protocol version your client targets (it's `1`; it
+has always been `1`; enjoy this while it lasts). The day that becomes `2`, the only way to
+know which listings still work *without* this field is to email every author individually
+and wait for the 40% who reply. That is not a project anybody wants to run. Hence: required
+now, when it costs you one line.
 
-Neither is a promise that your client still works. They are the record of when anybody last
-checked, which is a much more useful thing to publish than silence.
+**`last-verified`** — the date you last actually ran the thing, and which Greenlight version
+you ran it against. This is the field standing between the gallery and becoming a museum of
+software that stopped working in 2027. Update it when you touch your listing.
 
-## Keeping a listing honest
+Neither field promises your client still works. They record when somebody last checked,
+which is dramatically more useful than the alternative, which is silence.
 
-- Update `last-verified` whenever you re-check.
-- Set `maintained: false` yourself if you stop maintaining it. The listing stays and the
-  card says so — that is more useful to a reader than a dead link.
-- To remove a listing entirely, delete its directory. No explanation required.
+## Keeping it honest
+
+- Update `last-verified` whenever you re-check. It takes four seconds.
+- Stopped maintaining it? Set `maintained: false` yourself. The listing stays, the card says
+  so, and that's genuinely more useful to a reader than clicking through to a dead link and
+  wondering. A weekly job also flags listings whose repositories have been archived, so this
+  will eventually happen with or without you. Beat it to the punch, look responsible.
+- Want it gone entirely? Delete the directory. No explanation, no exit interview.
 
 ## What the checks actually enforce
 
 Everything in [`schema/listing.schema.json`](schema/listing.schema.json), plus:
 
 - the slug matches the directory name
-- the poster and clip exist, and are within the size and duration limits
-- no unreferenced files are left in the listing directory
-- two listings do not claim the same repository
-- the repository URL resolves
-- `last-verified.sdk` is present when `integration` is `sdk`
+- the poster and clip exist and are within the size and duration limits
+- no mystery files loitering in your listing directory
+- two listings don't claim the same repository
+- the repository URL actually resolves
+- `last-verified.sdk` is there when `integration` is `sdk`
 
-They do not, and will not, check whether the client is safe to run.
+They do not check whether your client is safe to run. They never will. We've been over this.
