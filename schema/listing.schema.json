@@ -1,0 +1,188 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://meddlingidiot.com/greenlight/schema/listing.schema.json",
+  "title": "Greenlight client listing",
+  "description": "One entry in the Greenlight client gallery. A listing describes somebody's app; it is not a claim about that app's code. additionalProperties is false throughout, so a typo is a failed check rather than a field that silently does nothing.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "slug",
+    "name",
+    "tagline",
+    "description",
+    "author",
+    "repository",
+    "license",
+    "platforms",
+    "integration",
+    "greenlight-api",
+    "assets",
+    "last-verified"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Optional pointer to this schema, so editors offer completion."
+    },
+
+    "slug": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "minLength": 2,
+      "maxLength": 40,
+      "description": "URL segment for this listing. Must equal the directory name. Permanent once merged: it is the gallery URL, so changing it breaks links."
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 60,
+      "description": "What the app is called."
+    },
+    "tagline": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100,
+      "description": "One line, shown on the card under the name. Say what it does, not how good it is."
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 600,
+      "description": "A paragraph for the listing page."
+    },
+
+    "author": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https://",
+          "description": "Homepage, profile, or wherever you would rather people found you."
+        }
+      }
+    },
+
+    "repository": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https://",
+      "description": "Where the source lives. Checked for existence, never for quality or safety."
+    },
+    "homepage": { "type": "string", "format": "uri", "pattern": "^https://" },
+    "download": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https://",
+      "description": "A release or installer, if there is one. Source-only listings are fine."
+    },
+
+    "license": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 40,
+      "description": "SPDX identifier for the app's own source, e.g. MIT, Apache-2.0, GPL-3.0-or-later. Use NOASSERTION only if the repository genuinely has no licence — expect that to be questioned."
+    },
+
+    "platforms": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "enum": ["windows", "linux", "macos"] },
+      "description": "Where the client itself runs. Greenlight's local API is a Windows named pipe today, so windows is the usual answer; the field exists because that is a property of the host, not of this format."
+    },
+    "language": {
+      "type": "string",
+      "maxLength": 40,
+      "description": "Primary language, for people filtering by what they would enjoy reading."
+    },
+
+    "integration": {
+      "enum": ["sdk", "protocol"],
+      "description": "sdk: built on MeddlingIdiot.Greenlight.Sdk. protocol: speaks the named pipe directly, which is what a non-.NET client does."
+    },
+    "greenlight-api": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "The local-API protocol version this client targets. Impossible to retrofit: without it, the day the protocol moves to 2 there is no way to tell which listings still work without asking every author."
+    },
+
+    "build-time": {
+      "enum": ["an evening", "a weekend", "a few days", "longer"],
+      "description": "Roughly what it took. Optional, and deliberately a fixed set rather than free text — it is an invitation to build one, not a place for marketing copy."
+    },
+    "tags": {
+      "type": "array",
+      "maxItems": 8,
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$", "maxLength": 24 }
+    },
+
+    "assets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["poster", "attestation"],
+      "properties": {
+        "poster": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]*\\.(webp|png|jpg)$",
+          "description": "Still image beside this file, at most 1 MB. The card's poster frame, and what shows when the clip has not loaded."
+        },
+        "clip": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]*\\.mp4$",
+          "description": "Optional silent mp4 beside this file: at most 3 MB and under 15 seconds. Cards autoplay it muted and looping."
+        },
+        "attestation": {
+          "enum": ["original", "licensed"],
+          "description": "Impossible to retrofit, and the one field with legal weight. original: you made these, or they are screenshots of your own app. licensed: you have the right to publish them, and attestation-note says where they came from."
+        },
+        "attestation-note": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300,
+          "description": "Required when attestation is licensed: the source and the licence."
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "attestation": { "const": "licensed" } }, "required": ["attestation"] },
+          "then": { "required": ["attestation-note"] }
+        }
+      ]
+    },
+
+    "last-verified": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["date", "greenlight"],
+      "description": "What this listing was last seen working against. Impossible to retrofit, and what keeps the gallery from quietly filling with entries that stopped working two releases ago.",
+      "properties": {
+        "date": {
+          "type": "string",
+          "format": "date",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        },
+        "greenlight": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+(\\.[0-9]+)?$",
+          "description": "The Greenlight version it was run against."
+        },
+        "sdk": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+(\\.[0-9]+)?$",
+          "description": "The SDK package version, when integration is sdk."
+        }
+      }
+    },
+
+    "maintained": {
+      "type": "boolean",
+      "default": true,
+      "description": "Set false, by you or by the weekly rot pass, when the repository is archived or the client no longer works. The listing stays; the card says so."
+    }
+  }
+}

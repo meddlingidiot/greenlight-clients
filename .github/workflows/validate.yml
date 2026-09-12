@@ -1,0 +1,39 @@
+name: Validate listings
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# A fork's pull request gets a read-only token. Nothing here needs more than that: the job
+# reads the repository and says yes or no.
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install jsonschema
+        run: pip install "jsonschema[format]"
+
+      # ffprobe measures clip duration. The runner ships it, and --require-ffprobe below
+      # turns "not installed" from a warning into a failure, so the 15s limit cannot be
+      # skipped here the way it can be on a contributor's machine.
+      - name: Check ffprobe is present
+        run: ffprobe -version | head -1
+
+      # The checks are tested before they are trusted: nine fixtures that must each fail
+      # for a named reason, and one that must pass.
+      - name: Test the checks
+        run: python tools/validate.py --self-test
+
+      - name: Validate listings
+        run: python tools/validate.py --require-ffprobe

@@ -1,0 +1,11 @@
+{
+  "bad-date": "is not a 'date'",
+  "licensed-without-note": "attestation-note",
+  "no-api-version": "'greenlight-api' is a required property",
+  "poster-missing": "is not in this listing's directory",
+  "poster-too-big": "over the 1 MB limit",
+  "sdk-without-version": "last-verified/sdk: required when integration is 'sdk'",
+  "slug-mismatch": "does not match the directory name",
+  "stray-file": "not referenced by listing.json",
+  "unknown-field": "Additional properties are not allowed"
+}

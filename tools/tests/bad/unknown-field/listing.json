@@ -1,0 +1,26 @@
+{
+  "slug": "unknown-field",
+  "name": "Example Client",
+  "tagline": "A listing that exists so the checks can be checked",
+  "description": "Fixture data for the validator's self-test. Not a real client, and never published.",
+  "author": {
+    "name": "Meddling Idiot Software"
+  },
+  "repository": "https://github.com/meddlingidiot/MeddlingIdiot.Greenlight.CarsClient",
+  "license": "MIT",
+  "platforms": [
+    "windows"
+  ],
+  "integration": "sdk",
+  "greenlight-api": 1,
+  "assets": {
+    "poster": "poster.png",
+    "attestation": "original"
+  },
+  "last-verified": {
+    "date": "2026-09-12",
+    "greenlight": "1.4",
+    "sdk": "1.1.0"
+  },
+  "downloads": "https://example.com"
+}

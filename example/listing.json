@@ -1,0 +1,42 @@
+{
+  "$schema": "../schema/listing.schema.json",
+
+  "slug": "example-client",
+  "name": "Example Client",
+  "tagline": "One line about what it does, not how good it is",
+
+  "description": "A paragraph for the listing page. What it shows, where it lives on screen, and what it does when the build breaks. Six hundred characters is the ceiling, but three sentences is usually the right length — the poster and the clip do most of the work.",
+
+  "author": {
+    "name": "Your Name",
+    "url": "https://github.com/yourname"
+  },
+
+  "repository": "https://github.com/yourname/your-greenlight-client",
+  "homepage": "https://example.com/your-client",
+  "download": "https://github.com/yourname/your-greenlight-client/releases/latest",
+
+  "license": "MIT",
+  "platforms": ["windows"],
+  "language": "C#",
+
+  "integration": "sdk",
+  "greenlight-api": 1,
+
+  "build-time": "an evening",
+  "tags": ["taskbar", "ambient"],
+
+  "assets": {
+    "poster": "poster.webp",
+    "clip": "clip.mp4",
+    "attestation": "original"
+  },
+
+  "last-verified": {
+    "date": "2026-09-12",
+    "greenlight": "1.4",
+    "sdk": "1.1.0"
+  },
+
+  "maintained": true
+}
