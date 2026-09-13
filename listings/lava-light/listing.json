@@ -1,0 +1,30 @@
+{
+  "$schema": "../../schema/listing.schema.json",
+  "slug": "lava-light",
+  "name": "Lava Light",
+  "tagline": "A color changing lava light.",
+  "description": "This is a lava light that was generated with less that a 15 word prompt. It was given CarsClient as a template and asked to build.",
+  "author": {
+    "name": "Luke Lanphear"
+  },
+  "repository": "https://github.com/meddlingidiot/MeddlingIdiot.Greenlight.LavaLampClient",
+  "license": "MIT",
+  "platforms": [
+    "windows"
+  ],
+  "language": "C#",
+  "integration": "sdk",
+  "greenlight-api": 1,
+  "build-time": "an evening",
+  "assets": {
+    "poster": "poster.jpg",
+    "clip": "clip.mp4",
+    "attestation": "original"
+  },
+  "last-verified": {
+    "date": "2026-09-13",
+    "greenlight": "1.0.22",
+    "sdk": "1.2.0"
+  },
+  "maintained": true
+}
