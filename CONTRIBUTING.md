@@ -57,6 +57,19 @@ much happier having established that now.
 3. Write `listings/your-slug/listing.json`. Copy [`example/listing.json`](example/listing.json),
    which is a complete annotated entry, and point `$schema` at the schema so your editor
    does the remembering for you.
+### The shortcut
+
+Steps 2 to 4 are what the capture tool exists to skip:
+
+```bash
+cd capture
+dotnet run
+```
+
+Frame your client, press Enter, answer five questions, and it writes the whole directory —
+manifest, poster, and clip if you want one — already inside every limit. See
+[capture/README.md](capture/README.md). The long way round is below, and still works fine.
+
 4. Put the assets in the same directory:
    - **`poster`** — required. A still, **1 MB tops**, `.webp`, `.png` or `.jpg`. Landscape,
      roughly 16:9. This is the card. It is doing more work than your description, sorry.

@@ -21,6 +21,8 @@ example/
   listing.json        a complete annotated entry, for copying
 tools/
   validate.py         the same checks CI runs, runnable before you embarrass yourself
+capture/
+  dotnet run          frames your client, shoots it, and writes the listing for you
 ```
 
 ## Adding your client

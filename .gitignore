@@ -1,3 +1,7 @@
 __pycache__/
 *.pyc
 .venv/
+
+# capture tool build output
+capture/bin/
+capture/obj/

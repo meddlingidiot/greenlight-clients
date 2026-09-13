@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The tool that makes a listing. Point the frame at your client, take a still, optionally
+    record a loop, answer five questions, and it writes listings/<slug>/ ready to commit.
+
+    It lives in this repository rather than its own so the form and
+    schema/listing.schema.json cannot drift: when the schema gains a field, the form gains it
+    in the same commit.
+
+    net10.0-windows because the viewfinder is a Win32 window region and the capture is
+    BitBlt. The clients this photographs are Windows apps, so that costs nothing.
+  -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Greenlight.GalleryCapture</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.1.1" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.1.1" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.1" />
+    <PackageReference Include="System.Drawing.Common" Version="10.0.0" />
+  </ItemGroup>
+
+  <!--
+    The SDK is here to tell the truth in one field. last-verified.greenlight is supposed to
+    be the Greenlight version you actually ran against; asking the running Greenlight beats
+    asking the contributor to go and look, and it is wrong far less often.
+  -->
+  <ItemGroup>
+    <PackageReference Include="MeddlingIdiot.Greenlight.Sdk" Version="1.1.0" />
+  </ItemGroup>
+
+</Project>
