@@ -2,8 +2,8 @@
   "$schema": "../../schema/listing.schema.json",
   "slug": "cars",
   "name": "Cars",
-  "tagline": "Cars pile up at a red light",
-  "description": "Cars drive across the bottom of your screen honking if you get a pull request and obeying the traffic rules no matter how long the light stays red!",
+  "tagline": "Cars pile up when the light turns red.",
+  "description": "Cars obey the traffic rules and honk at you when you have a PR.",
   "author": {
     "name": "Luke Lanphear"
   },
@@ -15,7 +15,7 @@
   "language": "C#",
   "integration": "sdk",
   "greenlight-api": 1,
-  "build-time": "an evening",
+  "build-time": "a weekend",
   "assets": {
     "poster": "poster.jpg",
     "clip": "clip.mp4",
@@ -23,8 +23,8 @@
   },
   "last-verified": {
     "date": "2026-09-12",
-    "greenlight": "1.0.19",
-    "sdk": "1.1.0"
+    "greenlight": "1.0.20",
+    "sdk": "1.2.0"
   },
   "maintained": true
 }
