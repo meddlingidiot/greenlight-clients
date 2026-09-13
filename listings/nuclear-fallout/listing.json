@@ -1,0 +1,30 @@
+{
+  "$schema": "../../schema/listing.schema.json",
+  "slug": "nuclear-fallout",
+  "name": "Nuclear Fallout",
+  "tagline": "A nuclear fallout themed BIL for Greenlight",
+  "description": "A nuclear fallout themed BIL that pulses when the build is running and shows the appropriate colors and a nuclear explosion when broken.",
+  "author": {
+    "name": "Luke Lanphear"
+  },
+  "repository": "https://github.com/meddlingidiot/MeddlingIdiot.Greenlight.FalloutClient",
+  "license": "MIT",
+  "platforms": [
+    "windows"
+  ],
+  "language": "C#",
+  "integration": "sdk",
+  "greenlight-api": 1,
+  "build-time": "an evening",
+  "assets": {
+    "poster": "poster.jpg",
+    "clip": "clip.mp4",
+    "attestation": "original"
+  },
+  "last-verified": {
+    "date": "2026-09-13",
+    "greenlight": "1.0.22",
+    "sdk": "1.2.0"
+  },
+  "maintained": true
+}
