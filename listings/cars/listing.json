@@ -1,0 +1,30 @@
+{
+  "$schema": "../../schema/listing.schema.json",
+  "slug": "cars",
+  "name": "Cars",
+  "tagline": "Cars pile up at a red light",
+  "description": "Cars drive across the bottom of your screen honking if you get a pull request and obeying the traffic rules no matter how long the light stays red!",
+  "author": {
+    "name": "Luke Lanphear"
+  },
+  "repository": "https://github.com/meddlingidiot/MeddlingIdiot.Greenlight.CarsClient",
+  "license": "MIT",
+  "platforms": [
+    "windows"
+  ],
+  "language": "C#",
+  "integration": "sdk",
+  "greenlight-api": 1,
+  "build-time": "an evening",
+  "assets": {
+    "poster": "poster.jpg",
+    "clip": "clip.mp4",
+    "attestation": "original"
+  },
+  "last-verified": {
+    "date": "2026-09-12",
+    "greenlight": "1.0.19",
+    "sdk": "1.1.0"
+  },
+  "maintained": true
+}
