@@ -28,12 +28,17 @@ jobs:
       # turns "not installed" from a warning into a failure, so the 15s limit cannot be
       # skipped here the way it can be on a contributor's machine.
       - name: Check ffprobe is present
-        run: ffprobe -version | head -1
+        id: ffprobe
+        run: |
+          ffprobe -version | head -1
+          echo "path=$(command -v ffprobe)" >> "$GITHUB_OUTPUT"
 
       # The checks are tested before they are trusted: nine fixtures that must each fail
       # for a named reason, and one that must pass.
       - name: Test the checks
         run: python tools/validate.py --self-test
 
+      # The path the shell just proved, handed over explicitly: on one run Python's PATH
+      # search came up empty on a runner where the step above had passed.
       - name: Validate listings
-        run: python tools/validate.py --require-ffprobe
+        run: python tools/validate.py --require-ffprobe --ffprobe "${{ steps.ffprobe.outputs.path }}"

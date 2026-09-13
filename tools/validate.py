@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -102,20 +103,35 @@ def check_assets(directory: Path, data: dict) -> list[str]:
     return problems
 
 
+# Where ffprobe is. Resolved from PATH by default; --ffprobe overrides it, which is what CI
+# does: the workflow proves ffprobe exists in a shell step and hands that same path over,
+# rather than trusting that Python's view of PATH matches the shell's. It did not, once.
+FFPROBE: str | None = None
+
+
+def find_ffprobe() -> str | None:
+    return FFPROBE or shutil.which("ffprobe")
+
+
 def check_clip_duration(path: Path) -> list[str]:
     """Duration needs ffprobe. Missing ffprobe is reported by the caller, not faked here."""
-    if shutil.which("ffprobe") is None:
+    ffprobe = find_ffprobe()
+    if ffprobe is None:
         raise Problem("ffprobe-missing")
-    result = subprocess.run(
-        [
-            "ffprobe", "-v", "error",
-            "-show_entries", "format=duration",
-            "-of", "default=noprint_wrappers=1:nokey=1",
-            str(path),
-        ],
-        capture_output=True,
-        text=True,
-    )
+    try:
+        result = subprocess.run(
+            [
+                ffprobe, "-v", "error",
+                "-show_entries", "format=duration",
+                "-of", "default=noprint_wrappers=1:nokey=1",
+                str(path),
+            ],
+            capture_output=True,
+            text=True,
+        )
+    except OSError:
+        # A --ffprobe that points at nothing is the same situation as none on PATH.
+        raise Problem("ffprobe-missing") from None
     if result.returncode != 0:
         return [f"assets/clip: {path.name} could not be read as a video ({result.stderr.strip()})"]
     try:
@@ -162,7 +178,10 @@ def validate_listing(directory: Path, schema: dict, offline: bool, ffprobe_requi
     try:
         problems.extend(check_assets(directory, data))
     except Problem:
-        message = "assets/clip: ffprobe is not installed, so the 15s limit was not checked"
+        message = (
+            "assets/clip: ffprobe is not installed, so the 15s limit was not checked "
+            f"(looked on PATH={os.environ.get('PATH', '')!r}; pass --ffprobe to say where it is)"
+        )
         if ffprobe_required:
             problems.append(message.replace("was not checked", "could not be checked"))
         else:
@@ -286,11 +305,14 @@ def main() -> int:
     parser.add_argument("root", nargs="?", default=Path(__file__).resolve().parent.parent, type=Path)
     parser.add_argument("--offline", action="store_true", help="skip the repository reachability check")
     parser.add_argument("--require-ffprobe", action="store_true", help="fail rather than warn when ffprobe is absent")
+    parser.add_argument("--ffprobe", metavar="PATH", help="the ffprobe to use, instead of searching PATH")
     parser.add_argument("--self-test", action="store_true", help="check the checks against tools/tests")
     args = parser.parse_args()
 
     if args.self_test:
         return self_test(args.root)
+    global FFPROBE
+    FFPROBE = args.ffprobe
     return run(args.root, args.offline, args.require_ffprobe)
 
 
