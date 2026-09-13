@@ -38,6 +38,19 @@ cars over the taskbar. The difference is that the cars make the *whole* window c
 because nothing on them is interactive; here the dimmed surround has to stay draggable, so
 only the interior is cut away.
 
+## Making something happen
+
+A clip of a client sitting green is a clip of nothing happening. The **Show a state** row —
+Red, Yellow, Green, Off, Blink, Live — sends Greenlight's `hold_indicators` command through
+the SDK, and every indicator Greenlight drives follows it: its tray icon, its desktop stoplight,
+any hardware lamps, and every attached app, yours included. Go red before the still, start the
+blink partway through the clip, come back to green for the last second.
+
+Greenlight releases the hold the moment this tool's connection ends, so however you leave —
+Done, Esc, the ✕, Task Manager — the user's real light comes back. The buttons grey out, and
+say why, when the attached Greenlight doesn't offer the command: its local API set to
+read-only, or a version before 1.0.20.
+
 ## What it fills in for you
 
 `last-verified.greenlight` is meant to be the Greenlight version you actually ran against, so
@@ -67,8 +80,9 @@ short.
 
 - **Windows only.** The viewfinder is a Win32 window region and the grab is `BitBlt`. The
   clients it photographs are Windows apps, so this costs nothing.
-- **The clip path is unproven.** It was written against ffmpeg's `gdigrab` but has not been
-  run on a machine that has ffmpeg installed. The poster path is verified end to end.
+- Both paths are verified end to end. The first real run (12 Sep 2026, ffmpeg 9.0.1) produced
+  a 10 s, 30 fps h.264 clip at 573 KB and a 106 KB poster, with a layered click-through
+  client in the frame — which is the case CAPTUREBLT exists for.
 - Poster comes out as `.jpg`. The schema also accepts `.webp` and `.png`; JPEG is what
   Windows can encode without another dependency, and quality steps down until the file fits
   rather than guessing once.

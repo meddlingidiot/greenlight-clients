@@ -6,6 +6,8 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
+using Greenlight.Sdk;
+using Greenlight.Sdk.Protocol;
 
 namespace Greenlight.GalleryCapture;
 
@@ -25,9 +27,18 @@ public sealed class PanelWindow : Window
     private readonly StackPanel _body = new() { Spacing = 10 };
 
     private string? _posterPath;
+    private Action? _shoot;
     private string? _clipPath;
     private string _greenlightVersion = "";
     private string? _sdkVersion;
+
+    /// <summary>
+    /// One connection for the life of the tool. Kept open rather than opened per question
+    /// because a hold placed through it is released by Greenlight the moment it closes —
+    /// so quitting this window, however it is quit, puts the user's real light back.
+    /// </summary>
+    private readonly GreenlightClient _greenlight = new();
+    private readonly StateStrip _states;
     private readonly string _workingDirectory =
         Path.Combine(Path.GetTempPath(), "greenlight-capture", Guid.NewGuid().ToString("n")[..8]);
 
@@ -54,7 +65,16 @@ public sealed class PanelWindow : Window
         };
 
         _viewfinder.RegionChanged += (_, _) => Dispatcher.UIThread.Post(FollowFrame);
-        _viewfinder.Accepted += (_, _) => Dispatcher.UIThread.Post(TakePoster);
+        // Enter on the frame is the poster button, so it also lights up "Next".
+        _viewfinder.Accepted += (_, _) => Dispatcher.UIThread.Post(() => _shoot?.Invoke());
+        // Esc on the frame ends the whole thing. Closing only the frame would leave this
+        // panel up with no frame, no shot, and no way out.
+        _viewfinder.Cancelled += (_, _) => Dispatcher.UIThread.Post(Close);
+        // Every click on the dim activates the frame, which would pull it over us.
+        _viewfinder.Touched += (_, _) => Dispatcher.UIThread.Post(StayAboveTheFrame);
+
+        _states = new StateStrip(_greenlight);
+        _states.Show();
 
         ShowShootPage();
         _ = AskGreenlightWhatVersionItIs();
@@ -104,24 +124,136 @@ public sealed class PanelWindow : Window
         return (row, box);
     }
 
-    /// <summary>Sits under the frame, or over it when there is no room below.</summary>
+    private void StayAboveTheFrame()
+    {
+        Native.RaiseWithoutFocus(TryGetPlatformHandle()?.Handle ?? IntPtr.Zero);
+        _states.RaiseWithoutFocus();
+    }
+
+    /// <summary>
+    /// A close control on every page, because the window has no title bar to put one on.
+    /// </summary>
+    private Control Chrome(string heading)
+    {
+        var quit = new Button
+        {
+            Content = "✕", Padding = new Thickness(8, 2), FontSize = 12,
+            Background = Brushes.Transparent,
+            Foreground = new SolidColorBrush(Color.FromRgb(0x9A, 0xAA, 0xA0)),
+        };
+        ToolTip.SetTip(quit, "Quit (Esc)");
+        quit.Click += (_, _) => Close();
+        DockPanel.SetDock(quit, Dock.Right);
+
+        return new DockPanel { Width = 430, Children = { quit, Heading(heading) } };
+    }
+
+    protected override void OnKeyDown(Avalonia.Input.KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+        if (e.Key == Avalonia.Input.Key.Escape) Close();
+    }
+
+    protected override void OnOpened(EventArgs e)
+    {
+        base.OnOpened(e);
+        AdoptByTheFrame();
+        StayAboveTheFrame();
+    }
+
+    /// <summary>
+    /// The frame owns this window and the state strip, so both sit above it no matter what
+    /// was clicked. Owner and owned must both exist, so this runs once each is open.
+    /// </summary>
+    private void AdoptByTheFrame()
+    {
+        var frame = _viewfinder.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
+        Native.SetOwner(TryGetPlatformHandle()?.Handle ?? IntPtr.Zero, frame);
+        Native.SetOwner(_states.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero, frame);
+    }
+
+    /// <summary>
+    /// Sits beside the frame — below, above, right or left, whichever fits on the screen —
+    /// and never inside it.
+    /// </summary>
+    /// <remarks>
+    /// The first version tried below and then above and otherwise gave up, which put the
+    /// panel's own buttons in the top-left of the very first poster ever taken. Inside the
+    /// frame is the one place this window must not be, so when the frame is so large that
+    /// nothing fits beside it, <see cref="OutOfShot"/> hides the panel for the capture.
+    /// </remarks>
     private void FollowFrame()
     {
-        var region = _viewfinder.Region;
-        var height = (int)(Bounds.Height * RenderScaling);
-        var below = region.Bottom + 16;
-        var screen = Screens.ScreenFromPoint(new PixelPoint(region.X, region.Y));
-        var limit = screen?.Bounds.Y + screen?.Bounds.Height ?? below + height;
+        // The frame's first region change is it finishing opening — the earliest moment it
+        // has a handle to own anything with.
+        AdoptByTheFrame();
+        StayAboveTheFrame();
 
-        Position = new PixelPoint(region.X, below + height > limit ? Math.Max(0, region.Y - height - 16) : below);
+        var region = _viewfinder.Region;
+        var width = (int)(Bounds.Width * RenderScaling);
+        var height = (int)(Bounds.Height * RenderScaling);
+        const int gap = 16;
+
+        var screen = Screens.ScreenFromPoint(new PixelPoint(region.X, region.Y))?.Bounds
+                     ?? new PixelRect(region.X, region.Y, region.Width, region.Height);
+
+        var candidates = new[]
+        {
+            new PixelPoint(region.X, region.Bottom + gap),
+            new PixelPoint(region.X, region.Y - height - gap),
+            new PixelPoint(region.Right + gap, region.Y),
+            new PixelPoint(region.X - width - gap, region.Y),
+        };
+        foreach (var candidate in candidates)
+        {
+            var box = new PixelRect(candidate, new PixelSize(width, height));
+            if (screen.Contains(box.TopLeft) && screen.Contains(box.BottomRight))
+            {
+                Position = candidate;
+                return;
+            }
+        }
+
+        // Nothing fits beside it. Park under the state strip in the screen's corner; the
+        // capture hides us.
+        Position = new PixelPoint(screen.X + gap, screen.Y + StateStrip.PixelHeight + 2 * gap);
+    }
+
+    /// <summary>True when any of this window overlaps the capture area.</summary>
+    private bool InShot()
+    {
+        var region = _viewfinder.Region;
+        var mine = new PixelRect(Position, new PixelSize(
+            (int)(Bounds.Width * RenderScaling), (int)(Bounds.Height * RenderScaling)));
+        return mine.Intersects(new PixelRect(region.X, region.Y, region.Width, region.Height));
+    }
+
+    /// <summary>
+    /// Runs a capture with this window guaranteed out of it. Normally that costs nothing —
+    /// the panel sits beside the frame — but a frame that fills the screen leaves nowhere
+    /// to sit, and then the only honest answer is to get out of the way for a moment.
+    /// </summary>
+    private async Task OutOfShot(Func<Task> capture)
+    {
+        var hide = InShot();
+        if (hide)
+        {
+            Hide();
+            // Let the compositor actually remove us before the first frame is grabbed.
+            await Task.Delay(250);
+        }
+        try { await capture(); }
+        finally { if (hide) { Show(); StayAboveTheFrame(); } }
     }
 
     // --- page one: the shot -----------------------------------------------------------
 
     private void ShowShootPage()
     {
+        _viewfinder.Show();
+        StayAboveTheFrame();
         _body.Children.Clear();
-        _body.Children.Add(Heading("Frame your client"));
+        _body.Children.Add(Chrome("Frame your client"));
         _body.Children.Add(Note(
             "Drag the frame over it, resize from the corners. The area inside the frame is a real hole " +
             "in this overlay — you can click straight through it to set your client up, and what you see " +
@@ -133,12 +265,13 @@ public sealed class PanelWindow : Window
         var next = Action("Next: the details") ;
         next.IsEnabled = false;
 
-        poster.Click += (_, _) =>
+        _shoot = async () =>
         {
-            TakePoster();
+            await OutOfShot(() => { TakePoster(); return Task.CompletedTask; });
             status.Text = $"Poster saved. {new FileInfo(_posterPath!).Length / 1024} KB, comfortably inside the 1 MB limit.";
             next.IsEnabled = true;
         };
+        poster.Click += (_, _) => _shoot();
 
         clip.Click += async (_, _) =>
         {
@@ -158,7 +291,8 @@ public sealed class PanelWindow : Window
             status.Text = $"Recording {Capture.ClipSeconds} seconds. Make it loop.";
 
             var path = Path.Combine(_workingDirectory, "clip.mp4");
-            var failure = await Capture.Clip(_viewfinder.Region, path, CancellationToken.None);
+            string? failure = null;
+            await OutOfShot(async () => failure = await Capture.Clip(_viewfinder.Region, path, CancellationToken.None));
 
             if (failure is null)
             {
@@ -195,8 +329,13 @@ public sealed class PanelWindow : Window
 
     private void ShowDetailsPage()
     {
+        // The shot is taken and the clip is recorded; the frame has nothing left to do, and
+        // a topmost window spanning every screen is exactly the thing that fights the text
+        // boxes for focus. Back brings it back.
+        _viewfinder.Hide();
+        _shoot = null;
         _body.Children.Clear();
-        _body.Children.Add(Heading("Five things, then you are done"));
+        _body.Children.Add(Chrome("Five things, then you are done"));
 
         var (nameRow, name) = Field("Name", "Cars");
         var (taglineRow, tagline) = Field("One line", "Cars that pile up at a red light when a pipeline breaks");
@@ -271,7 +410,7 @@ public sealed class PanelWindow : Window
                 {
                     Date = DateTime.Now.ToString("yyyy-MM-dd"),
                     Greenlight = _greenlightVersion.Length > 0 ? _greenlightVersion : "0.0",
-                    Sdk = (string?)integration.SelectedItem == "sdk" ? _sdkVersion ?? "1.1.0" : null,
+                    Sdk = (string?)integration.SelectedItem == "sdk" ? _sdkVersion ?? "1.2.0" : null,
                 },
             };
 
@@ -330,7 +469,7 @@ public sealed class PanelWindow : Window
     {
         _viewfinder.Hide();
         _body.Children.Clear();
-        _body.Children.Add(Heading("That is a listing"));
+        _body.Children.Add(Chrome("That is a listing"));
         _body.Children.Add(Note(destination));
         _body.Children.Add(Note(
             "Check it with  python tools/validate.py  then commit the directory and open a pull request. "
@@ -359,14 +498,14 @@ public sealed class PanelWindow : Window
     {
         try
         {
-            await using var greenlight = new Greenlight.Sdk.GreenlightClient();
-            await greenlight.StartAsync();
+            await _greenlight.StartAsync();
 
             // Absent is a normal state, so this waits briefly and then gives up quietly
-            // rather than treating "no Greenlight" as a failure.
+            // rather than treating "no Greenlight" as a failure. The client keeps retrying
+            // in the background regardless, for the state buttons.
             for (var attempt = 0; attempt < 20; attempt++)
             {
-                if (greenlight.HostVersion is { Length: > 0 } version)
+                if (_greenlight.HostVersion is { Length: > 0 } version)
                 {
                     _greenlightVersion = version;
                     break;
@@ -374,7 +513,7 @@ public sealed class PanelWindow : Window
                 await Task.Delay(150);
             }
 
-            _sdkVersion = typeof(Greenlight.Sdk.GreenlightClient).Assembly.GetName().Version is { } v
+            _sdkVersion = typeof(GreenlightClient).Assembly.GetName().Version is { } v
                 ? $"{v.Major}.{v.Minor}.{v.Build}"
                 : null;
         }
@@ -388,5 +527,8 @@ public sealed class PanelWindow : Window
     {
         base.OnClosed(e);
         _viewfinder.Close();
+        _states.Close();
+        // Detaching is what releases any hold this tool placed; Greenlight does that itself.
+        _ = _greenlight.DisposeAsync().AsTask();
     }
 }

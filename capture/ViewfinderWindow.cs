@@ -51,6 +51,8 @@ public sealed class ViewfinderWindow : Window
 
     public event EventHandler? RegionChanged;
     public event EventHandler? Accepted;
+    public event EventHandler? Cancelled;
+    public event EventHandler? Touched;
 
     protected override void OnOpened(EventArgs e)
     {
@@ -179,6 +181,7 @@ public sealed class ViewfinderWindow : Window
     protected override void OnPointerPressed(PointerPressedEventArgs e)
     {
         base.OnPointerPressed(e);
+        Touched?.Invoke(this, EventArgs.Empty);
         _dragFrom = e.GetPosition(this);
         _dragStart = _region;
         _dragCorner = CornerAt(_dragFrom);
@@ -234,7 +237,7 @@ public sealed class ViewfinderWindow : Window
             case Key.Up: SetRegion(_region.MovedBy(0, -step)); break;
             case Key.Down: SetRegion(_region.MovedBy(0, step)); break;
             case Key.Enter: Accepted?.Invoke(this, EventArgs.Empty); break;
-            case Key.Escape: Close(); break;
+            case Key.Escape: Cancelled?.Invoke(this, EventArgs.Empty); break;
             default: return;
         }
         e.Handled = true;

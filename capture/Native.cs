@@ -14,6 +14,48 @@ internal static class Native
 
     private const int RgnDiff = 4;
 
+    private static readonly IntPtr HwndTopmost = new(-1);
+    private const uint SwpNoSize = 0x0001;
+    private const uint SwpNoMove = 0x0002;
+    private const uint SwpNoActivate = 0x0010;
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, uint flags);
+
+    private const int GwlpHwndParent = -8;
+
+    /// <summary>
+    /// Makes <paramref name="owner"/> the Win32 owner of <paramref name="hwnd"/>.
+    /// </summary>
+    /// <remarks>
+    /// An owned window is always above its owner, whatever was clicked last. That is the one
+    /// guarantee Win32 gives about z-order between two topmost windows — re-raising after
+    /// every click is a race, and this tool lost it often enough. Set at this level rather
+    /// than through Avalonia's <c>Show(owner)</c> so hiding the frame on the details page
+    /// stays a plain hide and the panel is not taken with it.
+    /// </remarks>
+    public static void SetOwner(IntPtr hwnd, IntPtr owner)
+    {
+        if (hwnd == IntPtr.Zero || owner == IntPtr.Zero) return;
+        SetWindowLongPtrW(hwnd, GwlpHwndParent, owner);
+    }
+
+    /// <summary>
+    /// Puts the window at the top of the topmost band without giving it focus.
+    /// </summary>
+    /// <remarks>
+    /// Both of our windows are topmost, and among topmost windows Win32 orders by whichever
+    /// was activated last — so every drag on the dim pulls the frame over the panel and
+    /// buries the wizard. The frame calls this for the panel whenever it is touched, and
+    /// NOACTIVATE is what keeps focus where it was: the drag in progress, or the text box
+    /// being typed into.
+    /// </remarks>
+    public static void RaiseWithoutFocus(IntPtr hwnd)
+    {
+        if (hwnd == IntPtr.Zero) return;
+        SetWindowPos(hwnd, HwndTopmost, 0, 0, 0, 0, SwpNoMove | SwpNoSize | SwpNoActivate);
+    }
+
     public const int SrcCopy = 0x00CC0020;
     public const int CaptureBlt = 0x40000000;
 

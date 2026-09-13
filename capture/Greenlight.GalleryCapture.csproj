@@ -28,12 +28,26 @@
   </ItemGroup>
 
   <!--
-    The SDK is here to tell the truth in one field. last-verified.greenlight is supposed to
-    be the Greenlight version you actually ran against; asking the running Greenlight beats
-    asking the contributor to go and look, and it is wrong far less often.
+    The SDK does two things here. It tells the truth in one field: last-verified.greenlight
+    is supposed to be the Greenlight version you actually ran against, and asking the running
+    Greenlight beats asking the contributor to go and look. And it drives the state buttons:
+    hold_indicators (SDK 1.2.0, Greenlight 1.0.20) makes every indicator on the machine go
+    red, or blink, on request, so a clip can show the client doing its job without waiting
+    for a build to break.
+
+    The package, except when the SDK repository is checked out beside this one — then the
+    project, so a change to the contract can be tried from here before it is published.
+    Pass -p:UseGreenlightSdkProject=false to build against the package regardless.
   -->
-  <ItemGroup>
-    <PackageReference Include="MeddlingIdiot.Greenlight.Sdk" Version="1.1.0" />
+  <PropertyGroup>
+    <GreenlightSdkProject Condition="'$(GreenlightSdkProject)' == ''">..\..\MeddlingIdiot.Greenlight.Sdk\Greenlight.Sdk\Greenlight.Sdk.csproj</GreenlightSdkProject>
+    <UseGreenlightSdkProject Condition="'$(UseGreenlightSdkProject)' == '' And Exists('$(GreenlightSdkProject)')">true</UseGreenlightSdkProject>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(UseGreenlightSdkProject)' == 'true'">
+    <ProjectReference Include="$(GreenlightSdkProject)" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(UseGreenlightSdkProject)' != 'true'">
+    <PackageReference Include="MeddlingIdiot.Greenlight.Sdk" Version="1.2.0" />
   </ItemGroup>
 
 </Project>

@@ -5,3 +5,6 @@ __pycache__/
 # capture tool build output
 capture/bin/
 capture/obj/
+
+# Rider
+capture/.idea/
