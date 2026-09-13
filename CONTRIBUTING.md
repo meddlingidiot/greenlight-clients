@@ -50,6 +50,19 @@ much happier having established that now.
 
 ## Actually adding your listing
 
+### The short way
+
+```bash
+cd capture
+dotnet run
+```
+
+Frame your client, press Enter, answer five questions. The tool writes the whole directory —
+manifest, poster, and a clip if you want one — already inside every limit, so steps 2 to 4
+below stop existing. See [capture/README.md](capture/README.md).
+
+### The long way, which is fine too
+
 1. Fork this repository. You know how to do this.
 2. Create `listings/your-slug/`. Lowercase, hyphenated, and **permanent once merged** —
    it's the gallery URL, so picking a slug you'll resent in six months is a choice you get
@@ -57,19 +70,6 @@ much happier having established that now.
 3. Write `listings/your-slug/listing.json`. Copy [`example/listing.json`](example/listing.json),
    which is a complete annotated entry, and point `$schema` at the schema so your editor
    does the remembering for you.
-### The shortcut
-
-Steps 2 to 4 are what the capture tool exists to skip:
-
-```bash
-cd capture
-dotnet run
-```
-
-Frame your client, press Enter, answer five questions, and it writes the whole directory —
-manifest, poster, and clip if you want one — already inside every limit. See
-[capture/README.md](capture/README.md). The long way round is below, and still works fine.
-
 4. Put the assets in the same directory:
    - **`poster`** — required. A still, **1 MB tops**, `.webp`, `.png` or `.jpg`. Landscape,
      roughly 16:9. This is the card. It is doing more work than your description, sorry.
