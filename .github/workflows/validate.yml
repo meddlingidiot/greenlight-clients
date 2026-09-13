@@ -24,14 +24,20 @@ jobs:
       - name: Install jsonschema
         run: pip install "jsonschema[format]"
 
-      # ffprobe measures clip duration. The runner ships it, and --require-ffprobe below
-      # turns "not installed" from a warning into a failure, so the 15s limit cannot be
-      # skipped here the way it can be on a contributor's machine.
+      # ffprobe measures clip duration, and --require-ffprobe below turns "not installed"
+      # from a warning into a failure, so the 15s limit cannot be skipped here the way it
+      # can be on a contributor's machine. The runner does not ship it: ubuntu-24.04 dropped
+      # ffmpeg, and the step that used to "check" for it was `ffprobe -version | head -1`
+      # in a shell without pipefail - which passes when head passes, ffprobe or no ffprobe.
+      - name: Install ffprobe
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+
       - name: Check ffprobe is present
         id: ffprobe
         run: |
-          ffprobe -version | head -1
-          echo "path=$(command -v ffprobe)" >> "$GITHUB_OUTPUT"
+          path="$(command -v ffprobe)"
+          "$path" -version | head -1
+          echo "path=$path" >> "$GITHUB_OUTPUT"
 
       # The checks are tested before they are trusted: nine fixtures that must each fail
       # for a named reason, and one that must pass.
