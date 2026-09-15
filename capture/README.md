@@ -19,6 +19,8 @@ up, and what you see through the frame is exactly what lands in the file.
 - **arrow keys** nudge by a pixel, with Shift by ten
 - **Enter** takes the poster, **Esc** gives up
 
+Or press **Whole screen** and skip the framing entirely.
+
 Then answer five questions — name, one line, a paragraph, your name, your repository — and it
 writes `listings/<slug>/` with the manifest and the assets, ready to validate and commit.
 
@@ -37,6 +39,30 @@ It's the same overlay technique
 cars over the taskbar. The difference is that the cars make the *whole* window click-through,
 because nothing on them is interactive; here the dimmed surround has to stay draggable, so
 only the interior is cut away.
+
+## The whole screen, and a shutter
+
+Some clients are not a rectangle you can put a frame around. A desktop stoplight in one corner,
+a taskbar strip along the bottom, cars driving between the two — frame any one of them and the
+listing shows a third of the thing.
+
+**Whole screen** drops the frame and points the capture at an entire monitor. What is left is a
+small bar along the bottom of that screen: **Snapshot**, **Record**, the monitor it is pointed
+at when there is more than one, and the way back to a frame.
+
+The bar sits inside the shot and is not in it. `SetWindowDisplayAffinity` with
+`WDA_EXCLUDEFROMCAPTURE` takes a window out of what `BitBlt` and the desktop duplication API
+see — ffmpeg's `gdigrab` included — while leaving it perfectly visible to the person clicking
+it. The state buttons get the same treatment, so Red, Blink and Green stay pressable *during* a
+whole-screen recording without appearing in it.
+
+Windows 10 2004 is where that call arrived. Older builds refuse it, and the tool falls back to
+what it did before: the panel hides itself for the length of the capture and says so, which
+also means there is no Stop button to press, and the clip ends on its cap instead.
+
+The poster comes out at the monitor's own size and aspect — 3440×1440 stays 3440×1440. The
+schema has never asked for 16:9; the *frame* keeps 16:9 because a card looks better that way,
+and a monitor is whatever the monitor is.
 
 ## Making something happen
 
@@ -76,6 +102,11 @@ Bitrate is computed from the 3 MB limit rather than guessed, and capped with
 seconds, not the fifteen the schema allows: the card loops it forever, and a loop wants to be
 short.
 
+**Record** starts it and the same button stops it, counting up while it runs. Ten seconds is
+the cap rather than the length — most of what a build indicator does, it does in about three —
+and stopping is a `q` on ffmpeg's stdin, which closes the file properly. Killing the process
+would be faster and would leave an mp4 with no moov atom, which is to say no mp4.
+
 ## Known limits
 
 - **Windows only.** The viewfinder is a Win32 window region and the grab is `BitBlt`. The
@@ -83,6 +114,8 @@ short.
 - Both paths are verified end to end. The first real run (12 Sep 2026, ffmpeg 9.0.1) produced
   a 10 s, 30 fps h.264 clip at 573 KB and a 106 KB poster, with a layered click-through
   client in the frame — which is the case CAPTUREBLT exists for.
+- The whole-screen path was checked the same way (14 Sep 2026): a 1920×1080 poster taken with
+  the shutter bar and the state buttons on screen, and neither of them anywhere in the file.
 - Poster comes out as `.jpg`. The schema also accepts `.webp` and `.png`; JPEG is what
   Windows can encode without another dependency, and quality steps down until the file fits
   rather than guessing once.

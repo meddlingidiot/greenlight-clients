@@ -57,7 +57,7 @@ cd capture
 dotnet run
 ```
 
-Frame your client, press Enter, answer five questions. The tool writes the whole directory —
+Frame your client — or take the whole screen — press Enter, answer five questions. The tool writes the whole directory —
 manifest, poster, and a clip if you want one — already inside every limit, so steps 2 to 4
 below stop existing. See [capture/README.md](capture/README.md).
 

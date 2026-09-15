@@ -41,6 +41,26 @@ internal static class Native
     }
 
     /// <summary>
+    /// Breaks the owner link <see cref="SetOwner"/> made, leaving the window ownerless.
+    /// </summary>
+    /// <remarks>
+    /// Win32 destroys an owner's owned windows along with it, and Avalonia does not know
+    /// this ownership exists — it was set behind its back, so the toolkit's own
+    /// <c>Owner</c> is still null. Closing the frame therefore destroyed the panel and the
+    /// strip underneath Avalonia, part-way through the close it was already running, and the
+    /// frame's own close never finished. The lifetime kept it in its window list, saw a
+    /// window still open, and cancelled the shutdown it had just started: every window gone
+    /// from the screen, the message loop still spinning, and the process only killable from
+    /// Task Manager. Letting go of the link before anything closes keeps each window's
+    /// teardown Avalonia's own to finish.
+    /// </remarks>
+    public static void ClearOwner(IntPtr hwnd)
+    {
+        if (hwnd == IntPtr.Zero) return;
+        SetWindowLongPtrW(hwnd, GwlpHwndParent, IntPtr.Zero);
+    }
+
+    /// <summary>
     /// Puts the window at the top of the topmost band without giving it focus.
     /// </summary>
     /// <remarks>
@@ -89,6 +109,11 @@ internal static class Native
     [DllImport("user32.dll", SetLastError = true)]
     private static extern int SetWindowRgn(IntPtr hWnd, IntPtr hRgn, bool redraw);
 
+    private const uint WdaExcludeFromCapture = 0x00000011;
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool SetWindowDisplayAffinity(IntPtr hWnd, uint affinity);
+
     /// <summary>
     /// Cuts <paramref name="hole"/> out of the window, in physical pixels relative to the
     /// window's own top-left corner.
@@ -118,6 +143,24 @@ internal static class Native
         DeleteObject(inner);
     }
 
+    /// <summary>
+    /// Asks Windows to leave this window out of every screen capture, and reports whether
+    /// it agreed.
+    /// </summary>
+    /// <remarks>
+    /// The one thing the region viewfinder cannot solve by moving out of the way: a capture
+    /// of the whole screen has no beside. WDA_EXCLUDEFROMCAPTURE removes the window from
+    /// what BitBlt and the desktop duplication API see — ffmpeg's gdigrab included — while
+    /// leaving it perfectly visible to the person using it. So the shutter button can sit in
+    /// the middle of the shot and still not be in it.
+    ///
+    /// Windows 10 2004 is where this arrived; older builds fail the call, and the caller
+    /// falls back to hiding the window for the length of the capture, which is what the tool
+    /// did everywhere before.
+    /// </remarks>
+    public static bool ExcludeFromCapture(IntPtr hwnd) =>
+        hwnd != IntPtr.Zero && SetWindowDisplayAffinity(hwnd, WdaExcludeFromCapture);
+
     /// <summary>Keeps the window out of Alt+Tab. It is furniture, not a destination.</summary>
     public static void MakeToolWindow(IntPtr hwnd)
     {
@@ -136,6 +179,11 @@ public readonly record struct PixelBox(int X, int Y, int Width, int Height)
     public int Bottom => Y + Height;
 
     public PixelBox MovedBy(int dx, int dy) => this with { X = X + dx, Y = Y + dy };
+
+    /// <summary>Trims to even dimensions. A region chosen with <see cref="ScaledTo"/> is
+    /// already even; a whole screen is whatever the monitor happens to be, and h.264 will
+    /// not encode an odd one.</summary>
+    public PixelBox Evened() => this with { Width = Width / 2 * 2, Height = Height / 2 * 2 };
 
     /// <summary>Resizes about the centre, keeping 16:9 and an even pixel count — h.264
     /// wants even dimensions, and a poster that is 16:9 matches the card it will sit in.</summary>

@@ -103,6 +103,21 @@ public sealed class ViewfinderWindow : Window
         RegionChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>
+    /// Points the capture at exactly this box, without the clamping the drag handles get.
+    /// </summary>
+    /// <remarks>
+    /// How the whole-screen mode aims: the region becomes a monitor, which is not something
+    /// the corners could ever produce — they keep 16:9, and a monitor frequently is not. The
+    /// frame hides itself in that mode, so nothing is drawn for this; the region is simply
+    /// what the grab and the recorder read.
+    /// </remarks>
+    public void Aim(PixelBox box)
+    {
+        _region = box;
+        RecutHole();
+    }
+
     private void SetRegion(PixelBox box)
     {
         // Keep it on the desktop. A frame dragged off the edge captures black, and finding

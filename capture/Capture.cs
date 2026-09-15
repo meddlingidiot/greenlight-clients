@@ -108,19 +108,27 @@ internal static class Capture
     }
 
     /// <summary>
-    /// Records the framed region for <see cref="ClipSeconds"/> seconds into a silent mp4
-    /// inside the 3 MB limit.
+    /// Starts recording the framed region into a silent mp4 that fits the 3 MB limit, and
+    /// hands back the recording so it can be stopped when the interesting bit is over.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// The bitrate is computed from the limit rather than picked, and capped once by
-    /// maxrate/bufsize, so a busy scene cannot overshoot the way a pure CRF encode can. Ten
-    /// seconds is chosen to sit under the fifteen the schema allows: the card loops this
-    /// forever, and a loop wants to be short.
+    /// maxrate/bufsize, so a busy scene cannot overshoot the way a pure CRF encode can. The
+    /// <see cref="ClipSeconds"/> cap is passed to ffmpeg as well as offered as a button:
+    /// whatever the person does, the file cannot run past the length the budget was sized
+    /// for, and it sits well under the fifteen seconds the schema allows — the card loops
+    /// this forever, and a loop wants to be short.
+    /// </para>
+    /// <para>
+    /// The failure string is what the caller shows; a null one with a null recording cannot
+    /// happen, and a non-null recording means ffmpeg is already grabbing frames.
+    /// </para>
     /// </remarks>
-    public static async Task<string?> Clip(PixelBox box, string path, CancellationToken cancellationToken)
+    public static (Recording? Recording, string? Failure) StartClip(PixelBox box, string path)
     {
         var ffmpeg = FindFfmpeg();
-        if (ffmpeg is null) return "ffmpeg is not on PATH";
+        if (ffmpeg is null) return (null, "ffmpeg is not on PATH");
 
         // 90% of the budget, in kbit/s, leaving room for the container's own overhead.
         var kbits = (int)(ClipMaxBytes * 8 * 0.90 / ClipSeconds / 1000);
@@ -134,24 +142,93 @@ internal static class Capture
             $"-b:v {kbits}k -maxrate {kbits}k -bufsize {kbits * 2}k " +
             $"-movflags +faststart \"{path}\"";
 
-        using var process = Process.Start(new ProcessStartInfo(ffmpeg, arguments)
+        var process = Process.Start(new ProcessStartInfo(ffmpeg, arguments)
         {
             UseShellExecute = false,
+            RedirectStandardInput = true,
             RedirectStandardError = true,
             CreateNoWindow = true,
         });
-        if (process is null) return "ffmpeg would not start";
+        return process is null
+            ? (null, "ffmpeg would not start")
+            : (new Recording(process, path), null);
+    }
+}
 
-        var errors = await process.StandardError.ReadToEndAsync(cancellationToken);
-        await process.WaitForExitAsync(cancellationToken);
+/// <summary>
+/// A recording that is running now: stoppable, and awaitable for the verdict on the file it
+/// leaves behind.
+/// </summary>
+[SupportedOSPlatform("windows")]
+internal sealed class Recording
+{
+    private readonly Process _process;
+    private readonly string _path;
+    private bool _stopped;
 
-        if (process.ExitCode != 0)
-            return string.IsNullOrWhiteSpace(errors) ? "ffmpeg failed" : errors.Trim();
-        if (!File.Exists(path))
-            return "ffmpeg reported success but wrote nothing";
-        if (new FileInfo(path).Length > ClipMaxBytes)
-            return $"the clip came out at {new FileInfo(path).Length / 1024 / 1024.0:F1} MB, over the 3 MB limit";
+    internal Recording(Process process, string path)
+    {
+        _process = process;
+        _path = path;
+        StartedAt = DateTime.UtcNow;
+        Finished = Wait();
+    }
 
-        return null;
+    public DateTime StartedAt { get; }
+
+    private DateTime? _ended;
+
+    /// <summary>How long it has been running, and once it is over, how long it ran.</summary>
+    public TimeSpan Elapsed => (_ended ?? DateTime.UtcNow) - StartedAt;
+
+    /// <summary>Null when the clip is usable, otherwise what went wrong with it.</summary>
+    public Task<string?> Finished { get; }
+
+    /// <summary>
+    /// Ends the recording now, leaving a playable file.
+    /// </summary>
+    /// <remarks>
+    /// A q on stdin is ffmpeg's own "stop and close the file properly". Killing the process
+    /// would be faster and would leave an mp4 with no moov atom, which is to say no mp4 —
+    /// the whole point of stopping early is to keep what was recorded.
+    /// </remarks>
+    public void Stop()
+    {
+        if (_stopped) return;
+        _stopped = true;
+        try
+        {
+            _process.StandardInput.Write('q');
+            _process.StandardInput.Flush();
+        }
+        catch (Exception)
+        {
+            // Already finished on its own: the -t cap got there first, which is a stop too.
+        }
+    }
+
+    private async Task<string?> Wait()
+    {
+        try
+        {
+            var errors = await _process.StandardError.ReadToEndAsync();
+            await _process.WaitForExitAsync();
+            _ended = DateTime.UtcNow;
+
+            if (_process.ExitCode != 0)
+                return string.IsNullOrWhiteSpace(errors) ? "ffmpeg failed" : errors.Trim();
+            if (!File.Exists(_path))
+                return "ffmpeg reported success but wrote nothing";
+
+            var size = new FileInfo(_path).Length;
+            if (size > Capture.ClipMaxBytes)
+                return $"the clip came out at {size / 1024 / 1024.0:F1} MB, over the 3 MB limit";
+
+            return null;
+        }
+        finally
+        {
+            _process.Dispose();
+        }
     }
 }

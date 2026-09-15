@@ -25,12 +25,30 @@ public sealed class PanelWindow : Window
 {
     private readonly ViewfinderWindow _viewfinder;
     private readonly StackPanel _body = new() { Spacing = 10 };
+    private readonly Border _shell;
 
     private string? _posterPath;
     private Action? _shoot;
     private string? _clipPath;
     private string _greenlightVersion = "";
     private string? _sdkVersion;
+
+    /// <summary>Whole-screen mode: no frame, no dim, just the two buttons.</summary>
+    private bool _fullscreen;
+    private int _screenIndex;
+    private PixelBox _framed;
+    private Recording? _recording;
+
+    /// <summary>
+    /// Whether Windows agreed to keep this window out of screen captures. When it did, the
+    /// panel can sit anywhere — including inside the shot — and the capture still only sees
+    /// the client underneath. When it did not, the panel gets out of the way the old way.
+    /// </summary>
+    private bool _invisibleToCapture;
+
+    /// <summary>Set the moment this window's close is certain, and never unset.</summary>
+    private bool _closing;
+    private bool _torndown;
 
     /// <summary>
     /// One connection for the life of the tool. Kept open rather than opened per question
@@ -56,7 +74,7 @@ public sealed class PanelWindow : Window
         WindowStartupLocation = WindowStartupLocation.Manual;
         Background = new SolidColorBrush(Color.FromRgb(0x14, 0x1A, 0x17));
 
-        Content = new Border
+        Content = _shell = new Border
         {
             BorderBrush = new SolidColorBrush(Color.FromRgb(0x3F, 0xD7, 0x7F)),
             BorderThickness = new Thickness(1),
@@ -65,6 +83,10 @@ public sealed class PanelWindow : Window
         };
 
         _viewfinder.RegionChanged += (_, _) => Dispatcher.UIThread.Post(FollowFrame);
+        // The panel is sized by its content, so a longer status line makes it taller after
+        // it has already been placed — and a bar placed by its bottom edge would drift down
+        // over the taskbar. Re-placing on resize costs nothing: this only moves the window.
+        SizeChanged += (_, _) => FollowFrame();
         // Enter on the frame is the poster button, so it also lights up "Next".
         _viewfinder.Accepted += (_, _) => Dispatcher.UIThread.Post(() => _shoot?.Invoke());
         // Esc on the frame ends the whole thing. Closing only the frame would leave this
@@ -135,6 +157,14 @@ public sealed class PanelWindow : Window
     /// </summary>
     private Control Chrome(string heading)
     {
+        var quit = QuitButton();
+        DockPanel.SetDock(quit, Dock.Right);
+
+        return new DockPanel { Width = 430, Children = { quit, Heading(heading) } };
+    }
+
+    private Button QuitButton()
+    {
         var quit = new Button
         {
             Content = "✕", Padding = new Thickness(8, 2), FontSize = 12,
@@ -143,9 +173,7 @@ public sealed class PanelWindow : Window
         };
         ToolTip.SetTip(quit, "Quit (Esc)");
         quit.Click += (_, _) => Close();
-        DockPanel.SetDock(quit, Dock.Right);
-
-        return new DockPanel { Width = 430, Children = { quit, Heading(heading) } };
+        return quit;
     }
 
     protected override void OnKeyDown(Avalonia.Input.KeyEventArgs e)
@@ -157,6 +185,7 @@ public sealed class PanelWindow : Window
     protected override void OnOpened(EventArgs e)
     {
         base.OnOpened(e);
+        _invisibleToCapture = Native.ExcludeFromCapture(TryGetPlatformHandle()?.Handle ?? IntPtr.Zero);
         AdoptByTheFrame();
         StayAboveTheFrame();
     }
@@ -167,6 +196,10 @@ public sealed class PanelWindow : Window
     /// </summary>
     private void AdoptByTheFrame()
     {
+        // Once the close is under way the links are being let go of, not remade: a fresh one
+        // here would hand the frame another window to destroy on its way out.
+        if (_closing) return;
+
         var frame = _viewfinder.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
         Native.SetOwner(TryGetPlatformHandle()?.Handle ?? IntPtr.Zero, frame);
         Native.SetOwner(_states.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero, frame);
@@ -194,8 +227,24 @@ public sealed class PanelWindow : Window
         var height = (int)(Bounds.Height * RenderScaling);
         const int gap = 16;
 
-        var screen = Screens.ScreenFromPoint(new PixelPoint(region.X, region.Y))?.Bounds
+        var found = Screens.ScreenFromPoint(new PixelPoint(region.X, region.Y));
+        var screen = found?.Bounds
                      ?? new PixelRect(region.X, region.Y, region.Width, region.Height);
+
+        // Whole-screen mode has no beside to sit in, so the bar sits along the bottom of the
+        // shot, clear of the taskbar — where a shutter button belongs, and where the capture
+        // exclusion means it costs the picture nothing.
+        if (_fullscreen)
+        {
+            // Clear of the taskbar by more than the gap used elsewhere: the window's shadow
+            // is not part of the bounds measured here, and a bar that overlaps the taskbar
+            // is a bar that covers the thing people click next.
+            var usable = found?.WorkingArea ?? screen;
+            Position = new PixelPoint(
+                region.X + (region.Width - width) / 2,
+                Math.Max(usable.Y, usable.Y + usable.Height - height - 3 * gap));
+            return;
+        }
 
         var candidates = new[]
         {
@@ -219,9 +268,12 @@ public sealed class PanelWindow : Window
         Position = new PixelPoint(screen.X + gap, screen.Y + StateStrip.PixelHeight + 2 * gap);
     }
 
-    /// <summary>True when any of this window overlaps the capture area.</summary>
+    /// <summary>True when any of this window overlaps the capture area <i>and</i> would be
+    /// photographed — a window Windows keeps out of captures can overlap all it likes.</summary>
     private bool InShot()
     {
+        if (_invisibleToCapture) return false;
+
         var region = _viewfinder.Region;
         var mine = new PixelRect(Position, new PixelSize(
             (int)(Bounds.Width * RenderScaling), (int)(Bounds.Height * RenderScaling)));
@@ -235,85 +287,261 @@ public sealed class PanelWindow : Window
     /// </summary>
     private async Task OutOfShot(Func<Task> capture)
     {
-        var hide = InShot();
-        if (hide)
-        {
-            Hide();
-            // Let the compositor actually remove us before the first frame is grabbed.
-            await Task.Delay(250);
-        }
+        var hidden = await StepOutOfShot();
         try { await capture(); }
-        finally { if (hide) { Show(); StayAboveTheFrame(); } }
+        finally { StepBackIn(hidden); }
+    }
+
+    /// <summary>Gets out of the way if being in it would show, and says whether it had to.</summary>
+    private async Task<bool> StepOutOfShot()
+    {
+        if (!InShot()) return false;
+        Hide();
+        // Let the compositor actually remove us before the first frame is grabbed.
+        await Task.Delay(250);
+        return true;
+    }
+
+    private void StepBackIn(bool hidden)
+    {
+        if (!hidden) return;
+        Show();
+        StayAboveTheFrame();
     }
 
     // --- page one: the shot -----------------------------------------------------------
 
+    /// <summary>
+    /// The shot, in whichever of the two shapes is wanted: the wizard page with a frame to
+    /// drag, or — in whole-screen mode — a shutter bar along the bottom of the screen it is
+    /// about to photograph.
+    /// </summary>
     private void ShowShootPage()
     {
-        _viewfinder.Show();
+        if (!_fullscreen) _viewfinder.Show();
         StayAboveTheFrame();
         _body.Children.Clear();
-        _body.Children.Add(Chrome("Frame your client"));
-        _body.Children.Add(Note(
-            "Drag the frame over it, resize from the corners. The area inside the frame is a real hole " +
-            "in this overlay — you can click straight through it to set your client up, and what you see " +
-            "there is exactly what gets captured."));
 
         var status = Note("");
-        var poster = Action("Take the poster", primary: true);
-        var clip = Action($"Record {Capture.ClipSeconds}s clip (optional)");
-        var next = Action("Next: the details") ;
-        next.IsEnabled = false;
+        var poster = Action("Snapshot", primary: true);
+        var record = Action(RecordLabel);
+        var next = Action(_fullscreen ? "Next →" : "Next: the details");
+        // A poster taken before the mode was switched is still a poster.
+        next.IsEnabled = _posterPath is not null;
 
         _shoot = async () =>
         {
+            if (_recording is not null) return;
             await OutOfShot(() => { TakePoster(); return Task.CompletedTask; });
             status.Text = $"Poster saved. {new FileInfo(_posterPath!).Length / 1024} KB, comfortably inside the 1 MB limit.";
             next.IsEnabled = true;
         };
-        poster.Click += (_, _) => _shoot();
+        poster.Click += (_, _) => _shoot?.Invoke();
+        record.Click += async (_, _) => await Record(record, poster, next, status);
+        next.Click += (_, _) => ShowDetailsPage();
 
-        clip.Click += async (_, _) =>
+        var mode = Action(_fullscreen ? "Frame a region" : "Whole screen");
+        ToolTip.SetTip(mode, _fullscreen
+            ? "Back to a draggable 16:9 frame"
+            : "Capture an entire monitor instead of a frame");
+        mode.Click += (_, _) => UseFullscreen(!_fullscreen);
+
+        if (_fullscreen) ShowShutterBar(poster, record, next, mode, status);
+        else ShowFramingPage(poster, record, next, mode, status);
+
+        // The bar is positioned from its own size, which is not known until this has been
+        // measured — so the move waits for the layout it depends on.
+        Dispatcher.UIThread.Post(FollowFrame, DispatcherPriority.Loaded);
+    }
+
+    private string RecordLabel => _fullscreen ? "● Record" : "● Record a clip";
+
+    /// <summary>Whole-screen mode: one row, no prose, parked over the taskbar.</summary>
+    private void ShowShutterBar(Button poster, Button record, Button next, Button mode, TextBlock status)
+    {
+        _shell.Padding = new Thickness(10, 8);
+
+        var row = new StackPanel
         {
-            if (!Capture.HasFfmpeg)
-            {
-                status.Text = "ffmpeg is not on PATH, so the clip is out — the poster alone makes a perfectly "
-                            + "good listing. To add one: winget install Gyan.FFmpeg";
-                return;
-            }
-
-            clip.IsEnabled = poster.IsEnabled = false;
-            for (var count = 3; count > 0; count--)
-            {
-                status.Text = $"Recording in {count}…";
-                await Task.Delay(700);
-            }
-            status.Text = $"Recording {Capture.ClipSeconds} seconds. Make it loop.";
-
-            var path = Path.Combine(_workingDirectory, "clip.mp4");
-            string? failure = null;
-            await OutOfShot(async () => failure = await Capture.Clip(_viewfinder.Region, path, CancellationToken.None));
-
-            if (failure is null)
-            {
-                _clipPath = path;
-                status.Text = $"Clip saved. {new FileInfo(path).Length / 1024 / 1024.0:F1} MB of the 3 MB allowed.";
-            }
-            else
-            {
-                status.Text = "No clip: " + failure;
-            }
-            clip.IsEnabled = poster.IsEnabled = true;
+            Orientation = Orientation.Horizontal, Spacing = 8,
+            Children = { poster, record },
         };
 
-        next.Click += (_, _) => ShowDetailsPage();
+        // Only worth the width when there is a second monitor to send it to.
+        if (Screens.All.Count > 1)
+        {
+            var screen = Action($"Screen {_screenIndex + 1}/{Screens.All.Count}");
+            ToolTip.SetTip(screen, "Capture the next monitor along");
+            screen.Click += (_, _) => NextScreen();
+            row.Children.Add(screen);
+        }
+
+        row.Children.Add(mode);
+        row.Children.Add(next);
+        row.Children.Add(QuitButton());
+
+        status.MaxWidth = 520;
+        status.Text = _invisibleToCapture
+            ? "The whole screen is the shot. This bar is not in it."
+            : "The whole screen is the shot. This Windows cannot hide the bar from a capture, so it "
+              + "disappears while the shutter works.";
+
+        _body.Children.Add(row);
+        _body.Children.Add(status);
+    }
+
+    /// <summary>The original page: a frame to drag, and room to explain it.</summary>
+    private void ShowFramingPage(Button poster, Button record, Button next, Button mode, TextBlock status)
+    {
+        _shell.Padding = new Thickness(18);
+        poster.Content = "Take the poster";
+
+        _body.Children.Add(Chrome("Frame your client"));
+        _body.Children.Add(Note(
+            "Drag the frame over it, resize from the corners. The area inside the frame is a real hole " +
+            "in this overlay — you can click straight through it to set your client up, and what you see " +
+            "there is exactly what gets captured. Or take the whole screen instead."));
 
         _body.Children.Add(new StackPanel
         {
             Orientation = Orientation.Horizontal, Spacing = 8,
-            Children = { poster, clip, next },
+            Children = { poster, record, mode, next },
         });
         _body.Children.Add(status);
+    }
+
+    // --- whole-screen mode ------------------------------------------------------------
+
+    /// <summary>
+    /// Swaps between the frame and the whole screen, remembering where the frame was.
+    /// </summary>
+    /// <remarks>
+    /// The frame is hidden rather than resized to the monitor: at that size the dim has
+    /// nothing left to dim, the corner handles sit off the edge of the screen, and all it
+    /// would contribute is a window between the person and the client they are trying to
+    /// photograph. The region it holds is still what gets captured — the frame is just not
+    /// drawn for it.
+    /// </remarks>
+    private void UseFullscreen(bool on)
+    {
+        if (_recording is not null) return;
+
+        _fullscreen = on;
+        if (on)
+        {
+            _framed = _viewfinder.Region;
+            _screenIndex = ScreenUnderTheFrame();
+            _viewfinder.Hide();
+            _viewfinder.Aim(WholeScreen());
+        }
+        else
+        {
+            _viewfinder.Aim(_framed);
+            _viewfinder.Show();
+        }
+        ShowShootPage();
+    }
+
+    private void NextScreen()
+    {
+        _screenIndex = (_screenIndex + 1) % Math.Max(1, Screens.All.Count);
+        _viewfinder.Aim(WholeScreen());
+        ShowShootPage();
+    }
+
+    /// <summary>The monitor the whole-screen mode is pointed at, in physical pixels.</summary>
+    private PixelBox WholeScreen()
+    {
+        var screens = Screens.All;
+        var bounds = screens[Math.Clamp(_screenIndex, 0, screens.Count - 1)].Bounds;
+        return new PixelBox(bounds.X, bounds.Y, bounds.Width, bounds.Height).Evened();
+    }
+
+    /// <summary>Which monitor to start on: the one the frame was already over.</summary>
+    private int ScreenUnderTheFrame()
+    {
+        var region = _viewfinder.Region;
+        var middle = new PixelPoint(region.X + region.Width / 2, region.Y + region.Height / 2);
+        var screens = Screens.All;
+        for (var i = 0; i < screens.Count; i++)
+            if (screens[i].Bounds.Contains(middle)) return i;
+        return 0;
+    }
+
+    // --- the clip ---------------------------------------------------------------------
+
+    /// <summary>
+    /// Start, or stop. One button either way, because the thing being recorded is a client
+    /// doing something — and only the person watching it knows when that finished.
+    /// </summary>
+    /// <remarks>
+    /// The <see cref="Capture.ClipSeconds"/> cap still applies, so a forgotten recording
+    /// ends on its own; stopping early is the normal case rather than the exception, since
+    /// most of what a build indicator does it does in about three seconds. Where the panel
+    /// has to hide for the capture there is nothing to press, and the cap is the only way it
+    /// ends — which the status line says before it disappears.
+    /// </remarks>
+    private async Task Record(Button record, Button poster, Button next, TextBlock status)
+    {
+        if (_recording is { } running)
+        {
+            running.Stop();
+            record.IsEnabled = false;
+            record.Content = "Finishing…";
+            return;
+        }
+
+        if (!Capture.HasFfmpeg)
+        {
+            status.Text = "ffmpeg is not on PATH, so the clip is out — the poster alone makes a perfectly "
+                        + "good listing. To add one: winget install Gyan.FFmpeg";
+            return;
+        }
+
+        var path = Path.Combine(_workingDirectory, "clip.mp4");
+        var hidden = await StepOutOfShot();
+        var (recording, failure) = Capture.StartClip(_viewfinder.Region, path);
+        if (recording is null)
+        {
+            StepBackIn(hidden);
+            status.Text = "No clip: " + failure;
+            return;
+        }
+
+        // The old file is gone the moment ffmpeg opens the new one, so a failed second take
+        // costs the first take too. Better said now than discovered in the listing.
+        _recording = recording;
+        _clipPath = null;
+        poster.IsEnabled = next.IsEnabled = false;
+        record.Content = "■ Stop";
+        status.Text = hidden
+            ? $"Recording with the panel hidden, so it ends itself at {Capture.ClipSeconds} seconds."
+            : $"Recording. Stop when the client has said its piece; {Capture.ClipSeconds} seconds is the cap.";
+
+        var ticker = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
+        ticker.Tick += (_, _) => record.Content = $"■ Stop  {recording.Elapsed.TotalSeconds:0}s";
+        ticker.Start();
+
+        var verdict = await recording.Finished;
+
+        ticker.Stop();
+        _recording = null;
+        StepBackIn(hidden);
+        poster.IsEnabled = record.IsEnabled = true;
+        next.IsEnabled = _posterPath is not null;
+        record.Content = RecordLabel;
+
+        if (verdict is null)
+        {
+            _clipPath = path;
+            var seconds = recording.Elapsed.TotalSeconds;
+            status.Text = $"Clip saved. {new FileInfo(path).Length / 1024 / 1024.0:F1} MB of the 3 MB allowed, "
+                        + $"about {seconds:0} seconds.";
+        }
+        else
+        {
+            status.Text = "No clip: " + verdict;
+        }
     }
 
     private void TakePoster()
@@ -523,9 +751,38 @@ public sealed class PanelWindow : Window
         }
     }
 
+    /// <summary>
+    /// Hands the panel and the strip back to themselves before anything is destroyed.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Native.SetOwner"/> made the frame their Win32 owner, which Win32 reads as
+    /// permission to destroy them when the frame goes. That cascade lands in the middle of
+    /// Avalonia's own teardown and leaves the frame's close unfinished, which in turn leaves
+    /// the application lifetime convinced a window is still open — so it cancels its
+    /// shutdown and the process outlives its last window. Closing runs before any window is
+    /// destroyed, so it is the moment to break the links.
+    /// </remarks>
+    protected override void OnClosing(WindowClosingEventArgs e)
+    {
+        base.OnClosing(e);
+        if (e.Cancel) return;
+
+        _closing = true;
+        Native.ClearOwner(TryGetPlatformHandle()?.Handle ?? IntPtr.Zero);
+        Native.ClearOwner(_states.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero);
+    }
+
     protected override void OnClosed(EventArgs e)
     {
         base.OnClosed(e);
+        // Belt and braces for the cascade above: should anything still close this window a
+        // second time, the frame and the strip must not be told to close from inside their
+        // own teardown.
+        if (_torndown) return;
+        _torndown = true;
+
+        // An ffmpeg left running would keep grabbing the screen after its window is gone.
+        _recording?.Stop();
         _viewfinder.Close();
         _states.Close();
         // Detaching is what releases any hold this tool placed; Greenlight does that itself.

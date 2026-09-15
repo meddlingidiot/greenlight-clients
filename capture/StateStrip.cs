@@ -23,9 +23,11 @@ namespace Greenlight.GalleryCapture;
 /// happening.
 /// </para>
 /// <para>
-/// Pinned to the corner, not to the frame, so it is in the same place every time and never
-/// in the shot unless the frame is dragged over the corner — in which case it is in the
-/// shot, deliberately: hiding it would take the buttons away at the one moment they matter.
+/// Pinned to the corner, not to the frame, so it is in the same place every time — and
+/// excluded from capture, so it stays clickable while sitting inside a whole-screen shot
+/// without appearing in it. Where Windows is too old for that exclusion it photographs like
+/// anything else, which is still better than hiding it: that would take the buttons away at
+/// the one moment they matter.
 /// </para>
 /// </remarks>
 [SupportedOSPlatform("windows")]
@@ -144,7 +146,9 @@ public sealed class StateStrip : Window
     protected override void OnOpened(EventArgs e)
     {
         base.OnOpened(e);
-        Native.MakeToolWindow(TryGetPlatformHandle()?.Handle ?? IntPtr.Zero);
+        var handle = TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
+        Native.MakeToolWindow(handle);
+        Native.ExcludeFromCapture(handle);
 
         // The corner of the primary screen. Not the frame's screen: the frame moves, and the
         // point of the strip is to be in the same place every time.
