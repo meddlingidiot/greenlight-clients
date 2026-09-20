@@ -1,13 +1,13 @@
 {
   "$schema": "../../schema/listing.schema.json",
-  "slug": "cars",
-  "name": "Cars",
-  "tagline": "Cars that pile up at a red light when the build breaks.",
-  "description": "They also obey the traffic rules and honk at you when you have a pull request.",
+  "slug": "wallpaper",
+  "name": "Wallpaper",
+  "tagline": "You wallpaper changes with the 4 build colors.",
+  "description": "It doesn't do anthing for building, what do you want a strobe light?",
   "author": {
     "name": "The Meddling Idiot"
   },
-  "repository": "https://github.com/meddlingidiot/MeddlingIdiot.Greenlight.CarsClient",
+  "repository": "https://github.com/meddlingidiot/MeddlingIdiot.Greenlight.FalloutClient",
   "license": "MIT",
   "platforms": [
     "windows"
