@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Runtime.Versioning;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
@@ -39,12 +40,38 @@ public sealed class PanelWindow : Window
     private PixelBox _framed;
     private Recording? _recording;
 
+    /// <summary>What the next recording is capped at.</summary>
+    private int _clipSeconds = Capture.ClipSeconds;
+
+    /// <summary>
+    /// Whether the length button is on show.
+    /// </summary>
+    /// <remarks>
+    /// Hidden until somebody holds the Record button down, because a listing's clip is capped
+    /// at fifteen seconds and wants to be shorter than that — a length control sitting there
+    /// by default would read as an invitation to record forty seconds of a build light, which
+    /// is the wrong thing to put on a card. The people who want a longer take want it for
+    /// something else, and they can be expected to go and find it.
+    /// </remarks>
+    private bool _longTakes;
+
     /// <summary>
     /// Whether Windows agreed to keep this window out of screen captures. When it did, the
     /// panel can sit anywhere — including inside the shot — and the capture still only sees
     /// the client underneath. When it did not, the panel gets out of the way the old way.
     /// </summary>
     private bool _invisibleToCapture;
+
+    /// <summary>
+    /// Whether somebody has put this window somewhere themselves.
+    /// </summary>
+    /// <remarks>
+    /// Once they have, <see cref="FollowFrame"/> stops placing it: a panel that springs back
+    /// beside the frame the next time the frame is nudged is a panel that cannot be moved at
+    /// all. Re-aiming the capture — whole screen, a different monitor — hands the placement
+    /// back, because where the bar goes is part of what those two do.
+    /// </remarks>
+    private bool _placedByHand;
 
     /// <summary>Set the moment this window's close is certain, and never unset.</summary>
     private bool _closing;
@@ -79,8 +106,16 @@ public sealed class PanelWindow : Window
             BorderBrush = new SolidColorBrush(Color.FromRgb(0x3F, 0xD7, 0x7F)),
             BorderThickness = new Thickness(1),
             Padding = new Thickness(18),
+            // Painted rather than left unpainted, in the window's own colour, so the shell
+            // is something the pointer can land on: an unpainted border is a hole as far as
+            // hit testing goes, and a handle nobody can hit is not a handle.
+            Background = new SolidColorBrush(Color.FromRgb(0x14, 0x1A, 0x17)),
             Child = _body,
         };
+
+        // No title bar, so the chassis is the handle. Moving it by hand also takes the
+        // placement over from FollowFrame, which would otherwise put it straight back.
+        DragToMove.By(_shell, this, () => _placedByHand = true);
 
         _viewfinder.RegionChanged += (_, _) => Dispatcher.UIThread.Post(FollowFrame);
         // The panel is sized by its content, so a longer status line makes it taller after
@@ -153,14 +188,29 @@ public sealed class PanelWindow : Window
     }
 
     /// <summary>
-    /// A close control on every page, because the window has no title bar to put one on.
+    /// A close control on every page, because the window has no title bar to put one on —
+    /// and the row it sits in is the title bar's other job, which is being somewhere to
+    /// grab the window by.
     /// </summary>
+    /// <remarks>
+    /// The whole shell drags; this row is only where it is advertised, with the cursor a
+    /// title bar would show. The close button opts back out of that cursor: Avalonia inherits
+    /// it down the tree, and a button that looks draggable reads as one that will not click.
+    /// </remarks>
     private Control Chrome(string heading)
     {
         var quit = QuitButton();
+        quit.Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Arrow);
         DockPanel.SetDock(quit, Dock.Right);
 
-        return new DockPanel { Width = 430, Children = { quit, Heading(heading) } };
+        var row = new DockPanel
+        {
+            Width = 430,
+            Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.SizeAll),
+            Children = { quit, Heading(heading) },
+        };
+        ToolTip.SetTip(row, "Drag to move this window");
+        return row;
     }
 
     private Button QuitButton()
@@ -207,7 +257,7 @@ public sealed class PanelWindow : Window
 
     /// <summary>
     /// Sits beside the frame — below, above, right or left, whichever fits on the screen —
-    /// and never inside it.
+    /// and never inside it, until somebody picks it up and puts it somewhere else.
     /// </summary>
     /// <remarks>
     /// The first version tried below and then above and otherwise gave up, which put the
@@ -221,6 +271,15 @@ public sealed class PanelWindow : Window
         // has a handle to own anything with.
         AdoptByTheFrame();
         StayAboveTheFrame();
+
+        // Placed by hand, so the only thing left to do is make sure it can still be reached:
+        // this runs on every resize, and the details page is a good deal taller than the
+        // shutter bar it replaces.
+        if (_placedByHand)
+        {
+            KeepOnScreen();
+            return;
+        }
 
         var region = _viewfinder.Region;
         var width = (int)(Bounds.Width * RenderScaling);
@@ -266,6 +325,28 @@ public sealed class PanelWindow : Window
         // Nothing fits beside it. Park under the state strip in the screen's corner; the
         // capture hides us.
         Position = new PixelPoint(screen.X + gap, screen.Y + StateStrip.PixelHeight + 2 * gap);
+    }
+
+    /// <summary>
+    /// Pulls the window back inside its screen's working area.
+    /// </summary>
+    /// <remarks>
+    /// The only placement left to do once somebody has placed it themselves. It is a resize
+    /// that needs it rather than a move: the window is sized by its content, so answering the
+    /// five questions grows a bar that was dropped at the bottom of the screen straight down
+    /// past the edge of it — and this window has no title bar to grab a window back by.
+    /// </remarks>
+    private void KeepOnScreen()
+    {
+        var width = (int)(Bounds.Width * RenderScaling);
+        var height = (int)(Bounds.Height * RenderScaling);
+
+        var screen = (Screens.ScreenFromPoint(Position) ?? Screens.Primary)?.WorkingArea;
+        if (screen is not { } usable) return;
+
+        Position = new PixelPoint(
+            Math.Clamp(Position.X, usable.X, Math.Max(usable.X, usable.Right - width)),
+            Math.Clamp(Position.Y, usable.Y, Math.Max(usable.Y, usable.Bottom - height)));
     }
 
     /// <summary>True when any of this window overlaps the capture area <i>and</i> would be
@@ -325,9 +406,27 @@ public sealed class PanelWindow : Window
         var status = Note("");
         var poster = Action("Snapshot", primary: true);
         var record = Action(RecordLabel);
+        var length = Action(LengthLabel);
         var next = Action(_fullscreen ? "Next →" : "Next: the details");
         // A poster taken before the mode was switched is still a poster.
         next.IsEnabled = _posterPath is not null;
+
+        length.IsVisible = _longTakes;
+        ToolTip.SetTip(length, "How long the next recording may run before it stops itself");
+        length.Click += (_, _) =>
+        {
+            var lengths = Capture.ClipLengths;
+            var at = Array.IndexOf(lengths, _clipSeconds);
+            _clipSeconds = lengths[(at + 1) % lengths.Length];
+            length.Content = LengthLabel;
+            status.Text = _clipSeconds <= Capture.SchemaClipSeconds
+                ? $"The next take stops itself at {_clipSeconds} seconds."
+                : $"The next take stops itself at {_clipSeconds} seconds — past the "
+                  + $"{Capture.SchemaClipSeconds} a listing's clip may be, so it will be kept as a file "
+                  + "rather than attached to the listing.";
+        };
+
+        HoldToUnlock(record, length, status);
 
         _shoot = async () =>
         {
@@ -346,8 +445,8 @@ public sealed class PanelWindow : Window
             : "Capture an entire monitor instead of a frame");
         mode.Click += (_, _) => UseFullscreen(!_fullscreen);
 
-        if (_fullscreen) ShowShutterBar(poster, record, next, mode, status);
-        else ShowFramingPage(poster, record, next, mode, status);
+        if (_fullscreen) ShowShutterBar(poster, record, length, next, mode, status);
+        else ShowFramingPage(poster, record, length, next, mode, status);
 
         // The bar is positioned from its own size, which is not known until this has been
         // measured — so the move waits for the layout it depends on.
@@ -356,15 +455,72 @@ public sealed class PanelWindow : Window
 
     private string RecordLabel => _fullscreen ? "● Record" : "● Record a clip";
 
+    private string LengthLabel => $"{_clipSeconds}s";
+
+    /// <summary>
+    /// Reveal the length button — or put it away again — on a three-second press of Record.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A press and not a modifier key or a menu, because the shutter bar has neither: in
+    /// whole-screen mode this window is one row of buttons over the taskbar, and the thing
+    /// being hidden is one button that belongs next to Record anyway.
+    /// </para>
+    /// <para>
+    /// The press that unlocks must not also start a recording. The timer fires while the
+    /// button is still down, so the flag it sets is already there when Avalonia raises Click
+    /// on the way back up — which is the one ordering this relies on.
+    /// </para>
+    /// </remarks>
+    private void HoldToUnlock(Button record, Button length, TextBlock status)
+    {
+        var held = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+
+        held.Tick += (_, _) =>
+        {
+            held.Stop();
+            _unlockedByHold = true;
+            _longTakes = !_longTakes;
+
+            length.IsVisible = _longTakes;
+            if (!_longTakes) _clipSeconds = Capture.ClipSeconds;
+            length.Content = LengthLabel;
+
+            status.Text = _longTakes
+                ? $"Longer takes unlocked. {LengthLabel} is the cap; press it to change, and hold Record "
+                  + "again to put it away."
+                : $"Back to the usual {Capture.ClipSeconds} seconds.";
+        };
+
+        record.AddHandler(PointerPressedEvent, (_, _) =>
+        {
+            // Cleared here rather than only where it is read: a hold that ended with the
+            // pointer dragged off the button never becomes a Click, and the flag would
+            // otherwise still be set when somebody pressed Record for real a minute later.
+            _unlockedByHold = false;
+            held.Start();
+        }, RoutingStrategies.Tunnel);
+
+        record.AddHandler(PointerReleasedEvent, (_, _) => held.Stop(), RoutingStrategies.Tunnel);
+
+        // Direct, because that is how Avalonia raises this one — a tunnelling handler for it
+        // is never called, and the timer would go on running after the pointer was gone.
+        record.AddHandler(PointerCaptureLostEvent, (_, _) => held.Stop(), RoutingStrategies.Direct);
+    }
+
+    /// <summary>Set by the hold, and eaten by the Click it would otherwise have turned into.</summary>
+    private bool _unlockedByHold;
+
     /// <summary>Whole-screen mode: one row, no prose, parked over the taskbar.</summary>
-    private void ShowShutterBar(Button poster, Button record, Button next, Button mode, TextBlock status)
+    private void ShowShutterBar(Button poster, Button record, Button length, Button next, Button mode,
+        TextBlock status)
     {
         _shell.Padding = new Thickness(10, 8);
 
         var row = new StackPanel
         {
             Orientation = Orientation.Horizontal, Spacing = 8,
-            Children = { poster, record },
+            Children = { poster, record, length },
         };
 
         // Only worth the width when there is a second monitor to send it to.
@@ -391,7 +547,8 @@ public sealed class PanelWindow : Window
     }
 
     /// <summary>The original page: a frame to drag, and room to explain it.</summary>
-    private void ShowFramingPage(Button poster, Button record, Button next, Button mode, TextBlock status)
+    private void ShowFramingPage(Button poster, Button record, Button length, Button next, Button mode,
+        TextBlock status)
     {
         _shell.Padding = new Thickness(18);
         poster.Content = "Take the poster";
@@ -405,7 +562,7 @@ public sealed class PanelWindow : Window
         _body.Children.Add(new StackPanel
         {
             Orientation = Orientation.Horizontal, Spacing = 8,
-            Children = { poster, record, mode, next },
+            Children = { poster, record, length, mode, next },
         });
         _body.Children.Add(status);
     }
@@ -427,6 +584,9 @@ public sealed class PanelWindow : Window
         if (_recording is not null) return;
 
         _fullscreen = on;
+        // A re-aim is a re-placement: the bar belongs along the bottom of the screen it is
+        // pointed at, and the panel belongs beside the frame it has just got back.
+        _placedByHand = false;
         if (on)
         {
             _framed = _viewfinder.Region;
@@ -445,6 +605,8 @@ public sealed class PanelWindow : Window
     private void NextScreen()
     {
         _screenIndex = (_screenIndex + 1) % Math.Max(1, Screens.All.Count);
+        // The bar has to go to the monitor it is now photographing, wherever it was dropped.
+        _placedByHand = false;
         _viewfinder.Aim(WholeScreen());
         ShowShootPage();
     }
@@ -483,6 +645,13 @@ public sealed class PanelWindow : Window
     /// </remarks>
     private async Task Record(Button record, Button poster, Button next, TextBlock status)
     {
+        // The press that just unlocked the length button was a hold, not a click on Record.
+        if (_unlockedByHold)
+        {
+            _unlockedByHold = false;
+            return;
+        }
+
         if (_recording is { } running)
         {
             running.Stop();
@@ -499,8 +668,9 @@ public sealed class PanelWindow : Window
         }
 
         var path = Path.Combine(_workingDirectory, "clip.mp4");
+        var seconds = _clipSeconds;
         var hidden = await StepOutOfShot();
-        var (recording, failure) = Capture.StartClip(_viewfinder.Region, path);
+        var (recording, failure) = Capture.StartClip(_viewfinder.Region, path, seconds);
         if (recording is null)
         {
             StepBackIn(hidden);
@@ -515,8 +685,8 @@ public sealed class PanelWindow : Window
         poster.IsEnabled = next.IsEnabled = false;
         record.Content = "■ Stop";
         status.Text = hidden
-            ? $"Recording with the panel hidden, so it ends itself at {Capture.ClipSeconds} seconds."
-            : $"Recording. Stop when the client has said its piece; {Capture.ClipSeconds} seconds is the cap.";
+            ? $"Recording with the panel hidden, so it ends itself at {seconds} seconds."
+            : $"Recording. Stop when the client has said its piece; {seconds} seconds is the cap.";
 
         var ticker = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
         ticker.Tick += (_, _) => record.Content = $"■ Stop  {recording.Elapsed.TotalSeconds:0}s";
@@ -531,16 +701,31 @@ public sealed class PanelWindow : Window
         next.IsEnabled = _posterPath is not null;
         record.Content = RecordLabel;
 
-        if (verdict is null)
+        if (verdict is not null)
+        {
+            status.Text = "No clip: " + verdict;
+            return;
+        }
+
+        // Length is what decides this, not the cap it was started with: a two-minute take
+        // stopped after eight seconds is an ordinary clip, and pretending otherwise would
+        // throw away a perfectly good one for the setting it happened to be recorded under.
+        var ran = recording.Elapsed.TotalSeconds;
+        var megabytes = recording.Bytes / 1024 / 1024.0;
+
+        if (ran <= Capture.SchemaClipSeconds && recording.Bytes <= Capture.ClipMaxBytes)
         {
             _clipPath = path;
-            var seconds = recording.Elapsed.TotalSeconds;
-            status.Text = $"Clip saved. {new FileInfo(path).Length / 1024 / 1024.0:F1} MB of the 3 MB allowed, "
-                        + $"about {seconds:0} seconds.";
+            status.Text = $"Clip saved. {megabytes:F1} MB of the 3 MB allowed, about {ran:0} seconds.";
         }
         else
         {
-            status.Text = "No clip: " + verdict;
+            // Kept, and said plainly. Attaching it anyway would put the listing through the
+            // gallery's checks to find out the same thing an hour later.
+            status.Text = $"Recorded {ran:0} seconds, {megabytes:F1} MB — too {(ran > Capture.SchemaClipSeconds
+                ? $"long for a listing's clip, which stops at {Capture.SchemaClipSeconds} seconds"
+                : "big for a listing's clip, which stops at 3 MB")}. "
+                        + $"The file is at {path} if you want it for something else.";
         }
     }
 

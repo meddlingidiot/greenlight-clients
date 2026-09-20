@@ -15,7 +15,25 @@ internal static class Capture
 {
     public const long PosterMaxBytes = 1 * 1024 * 1024;
     public const long ClipMaxBytes = 3 * 1024 * 1024;
+
+    /// <summary>
+    /// What a clip is capped at unless somebody asks for otherwise.
+    /// </summary>
+    /// <remarks>
+    /// Ten rather than the fifteen the schema allows: the card loops it forever, and a loop
+    /// wants to be short. It is also exactly one pass of the state strip's Auto cycle.
+    /// </remarks>
     public const int ClipSeconds = 10;
+
+    /// <summary>
+    /// The longest clip the gallery schema will take. Past this a recording is still a
+    /// perfectly good file — it is just not a listing's clip, and the tool says so rather
+    /// than letting it fail validation later.
+    /// </summary>
+    public const int SchemaClipSeconds = 15;
+
+    /// <summary>The caps the length button offers, once it has been unlocked.</summary>
+    public static readonly int[] ClipLengths = [ClipSeconds, SchemaClipSeconds, 30, 60, 120];
 
     /// <summary>
     /// Grabs the framed region and writes a JPEG that fits the 1 MB limit.
@@ -115,29 +133,37 @@ internal static class Capture
     /// <para>
     /// The bitrate is computed from the limit rather than picked, and capped once by
     /// maxrate/bufsize, so a busy scene cannot overshoot the way a pure CRF encode can. The
-    /// <see cref="ClipSeconds"/> cap is passed to ffmpeg as well as offered as a button:
-    /// whatever the person does, the file cannot run past the length the budget was sized
-    /// for, and it sits well under the fifteen seconds the schema allows — the card loops
-    /// this forever, and a loop wants to be short.
+    /// cap is passed to ffmpeg as well as offered as a button: whatever the person does, the
+    /// file cannot run past the length that was asked for.
+    /// </para>
+    /// <para>
+    /// That bitrate is a rate and not a division of the budget by whatever length was asked
+    /// for. Spreading 3 MB across a two-minute take would not produce a longer clip, it would
+    /// produce a worse-looking one — and a take that long is not going into a listing anyway,
+    /// so the thing worth holding constant is how it looks.
     /// </para>
     /// <para>
     /// The failure string is what the caller shows; a null one with a null recording cannot
     /// happen, and a non-null recording means ffmpeg is already grabbing frames.
     /// </para>
     /// </remarks>
-    public static (Recording? Recording, string? Failure) StartClip(PixelBox box, string path)
+    /// <param name="box">The region to record.</param>
+    /// <param name="path">Where the mp4 goes.</param>
+    /// <param name="seconds">The cap. Past <see cref="SchemaClipSeconds"/> the size limit stops applying.</param>
+    public static (Recording? Recording, string? Failure) StartClip(PixelBox box, string path, int seconds)
     {
         var ffmpeg = FindFfmpeg();
         if (ffmpeg is null) return (null, "ffmpeg is not on PATH");
 
-        // 90% of the budget, in kbit/s, leaving room for the container's own overhead.
+        // 90% of the budget over a default-length clip, in kbit/s, leaving room for the
+        // container's own overhead.
         var kbits = (int)(ClipMaxBytes * 8 * 0.90 / ClipSeconds / 1000);
 
         var arguments =
             $"-hide_banner -loglevel error -y " +
             $"-f gdigrab -framerate 30 -draw_mouse 0 " +
             $"-offset_x {box.X} -offset_y {box.Y} -video_size {box.Width}x{box.Height} " +
-            $"-i desktop -t {ClipSeconds} " +
+            $"-i desktop -t {seconds} " +
             $"-an -c:v libx264 -preset veryfast -pix_fmt yuv420p " +
             $"-b:v {kbits}k -maxrate {kbits}k -bufsize {kbits * 2}k " +
             $"-movflags +faststart \"{path}\"";
@@ -149,9 +175,13 @@ internal static class Capture
             RedirectStandardError = true,
             CreateNoWindow = true,
         });
+
+        // A take that could still be a listing's clip is held to the listing's size; one that
+        // could not is held to nothing, because failing it for being 8 MB would be refusing to
+        // do the thing that was explicitly asked for.
         return process is null
             ? (null, "ffmpeg would not start")
-            : (new Recording(process, path), null);
+            : (new Recording(process, path, seconds <= SchemaClipSeconds ? ClipMaxBytes : null), null);
     }
 }
 
@@ -164,12 +194,14 @@ internal sealed class Recording
 {
     private readonly Process _process;
     private readonly string _path;
+    private readonly long? _maxBytes;
     private bool _stopped;
 
-    internal Recording(Process process, string path)
+    internal Recording(Process process, string path, long? maxBytes)
     {
         _process = process;
         _path = path;
+        _maxBytes = maxBytes;
         StartedAt = DateTime.UtcNow;
         Finished = Wait();
     }
@@ -180,6 +212,9 @@ internal sealed class Recording
 
     /// <summary>How long it has been running, and once it is over, how long it ran.</summary>
     public TimeSpan Elapsed => (_ended ?? DateTime.UtcNow) - StartedAt;
+
+    /// <summary>How big the file came out, once <see cref="Finished"/> has completed.</summary>
+    public long Bytes { get; private set; }
 
     /// <summary>Null when the clip is usable, otherwise what went wrong with it.</summary>
     public Task<string?> Finished { get; }
@@ -220,9 +255,9 @@ internal sealed class Recording
             if (!File.Exists(_path))
                 return "ffmpeg reported success but wrote nothing";
 
-            var size = new FileInfo(_path).Length;
-            if (size > Capture.ClipMaxBytes)
-                return $"the clip came out at {size / 1024 / 1024.0:F1} MB, over the 3 MB limit";
+            Bytes = new FileInfo(_path).Length;
+            if (_maxBytes is { } limit && Bytes > limit)
+                return $"the clip came out at {Bytes / 1024 / 1024.0:F1} MB, over the 3 MB limit";
 
             return null;
         }
