@@ -1,6 +1,6 @@
 {
   "$schema": "../../schema/listing.schema.json",
-  "slug": "edgelight",
+  "slug": "edge-light",
   "name": "EdgeLight",
   "tagline": "A subtle indicator at the edge of your screen.",
   "description": "You can adjust the thickness and wheither it has the popin alarm.",
