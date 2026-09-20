@@ -1,13 +1,13 @@
 {
   "$schema": "../../schema/listing.schema.json",
-  "slug": "nuclear-fallout",
-  "name": "nuclear fallout",
-  "tagline": "A nuclear fallout themed BIL for Greenlight",
-  "description": "It shows a trefoil and a nuclear explosion on a broken build. pulses while building.",
+  "slug": "edgelight",
+  "name": "EdgeLight",
+  "tagline": "A subtle indicator at the edge of your screen.",
+  "description": "You can adjust the thickness and wheither it has the popin alarm.",
   "author": {
     "name": "The Meddling Idiot"
   },
-  "repository": "https://github.com/meddlingidiot/MeddlingIdiot.Greenlight.FalloutClient",
+  "repository": "https://github.com/meddlingidiot/MeddlingIdiot.Greenlight.EdgeLightClient",
   "license": "MIT",
   "platforms": [
     "windows"

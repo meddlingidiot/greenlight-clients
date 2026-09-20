@@ -1,11 +1,11 @@
 {
   "$schema": "../../schema/listing.schema.json",
-  "slug": "cars",
-  "name": "Cars",
-  "tagline": "Cars pile up when the light turns red.",
-  "description": "Cars obey the traffic rules and honk at you when you have a PR.",
+  "slug": "cars2",
+  "name": "Cars2",
+  "tagline": "Cars that pile up at a red light and honk when you have a PR",
+  "description": "This is an example app that can be cloned and pointed to by your genie (AI) of choice.",
   "author": {
-    "name": "Luke Lanphear"
+    "name": "The Meddling Idiot"
   },
   "repository": "https://github.com/meddlingidiot/MeddlingIdiot.Greenlight.CarsClient",
   "license": "MIT",
@@ -15,15 +15,15 @@
   "language": "C#",
   "integration": "sdk",
   "greenlight-api": 1,
-  "build-time": "a weekend",
+  "build-time": "an evening",
   "assets": {
     "poster": "poster.jpg",
     "clip": "clip.mp4",
     "attestation": "original"
   },
   "last-verified": {
-    "date": "2026-09-12",
-    "greenlight": "1.0.20",
+    "date": "2026-09-19",
+    "greenlight": "1.0.23",
     "sdk": "1.2.0"
   },
   "maintained": true

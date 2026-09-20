@@ -33,7 +33,7 @@ internal static class DragToMove
 {
     /// <summary>
     /// Makes every part of <paramref name="handle"/> that is not itself a control drag
-    /// <paramref name="window"/> about, telling <paramref name="moved"/> when one starts.
+    /// <paramref name="window"/> about, telling <paramref name="moved"/> when one has.
     /// </summary>
     public static void By(Control handle, Window window, Action? moved = null)
     {

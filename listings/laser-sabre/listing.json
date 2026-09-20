@@ -2,10 +2,10 @@
   "$schema": "../../schema/listing.schema.json",
   "slug": "laser-sabre",
   "name": "Laser Sabre",
-  "tagline": "Laser Sabre that changes color and pulses.",
-  "description": "This was build with two prompts, given CarsClient as a template.",
+  "tagline": "A familiar looking sword that pulses and changes color with the build.",
+  "description": "You can move resize and reorient it",
   "author": {
-    "name": "Luke Lanphear"
+    "name": "The Meddling Idiot"
   },
   "repository": "https://github.com/meddlingidiot/MeddlingIdiot.Greenlight.SabreClient",
   "license": "MIT",
@@ -22,8 +22,8 @@
     "attestation": "original"
   },
   "last-verified": {
-    "date": "2026-09-13",
-    "greenlight": "1.0.22",
+    "date": "2026-09-19",
+    "greenlight": "1.0.23",
     "sdk": "1.2.0"
   },
   "maintained": true

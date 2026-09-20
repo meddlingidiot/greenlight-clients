@@ -2,10 +2,10 @@
   "$schema": "../../schema/listing.schema.json",
   "slug": "lava-light",
   "name": "Lava Light",
-  "tagline": "A color changing lava light.",
-  "description": "This is a lava light that was generated with less that a 15 word prompt. It was given CarsClient as a template and asked to build.",
+  "tagline": "A 70's style lava light that pulses and changes color with the build.",
+  "description": "It has several properties that can be changed. It can be moved and resized.",
   "author": {
-    "name": "Luke Lanphear"
+    "name": "The Meddling Idiot"
   },
   "repository": "https://github.com/meddlingidiot/MeddlingIdiot.Greenlight.LavaLampClient",
   "license": "MIT",
@@ -22,8 +22,8 @@
     "attestation": "original"
   },
   "last-verified": {
-    "date": "2026-09-13",
-    "greenlight": "1.0.22",
+    "date": "2026-09-19",
+    "greenlight": "1.0.23",
     "sdk": "1.2.0"
   },
   "maintained": true
