@@ -1,0 +1,30 @@
+{
+  "$schema": "../../schema/listing.schema.json",
+  "slug": "rubber-ducky",
+  "name": "Rubber Ducky",
+  "tagline": "Rubber duck debugging, except the duck already knows what you did.",
+  "description": "A rubber duck on your desktop, lit by your CI: green while everything passes, yellow while a pull request wants you, and red with horns when a pipeline breaks. He quacks in a speech balloon rather than out loud, because open-plan offices are a thing. A reference consumer of the Greenlight SDK, in which the whole integration is about twenty lines.",
+  "author": {
+    "name": "The Meddling Idiot"
+  },
+  "repository": "https://github.com/meddlingidiot/MeddlingIdiot.Greenlight.DuckClient",
+  "license": "MIT",
+  "platforms": [
+    "windows"
+  ],
+  "language": "C#",
+  "integration": "sdk",
+  "greenlight-api": 1,
+  "build-time": "an evening",
+  "assets": {
+    "poster": "poster.jpg",
+    "clip": "clip.mp4",
+    "attestation": "original"
+  },
+  "last-verified": {
+    "date": "2026-09-20",
+    "greenlight": "1.0.24",
+    "sdk": "1.2.0"
+  },
+  "maintained": true
+}

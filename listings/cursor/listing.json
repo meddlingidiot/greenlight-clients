@@ -1,0 +1,30 @@
+{
+  "$schema": "../../schema/listing.schema.json",
+  "slug": "cursor",
+  "name": "Cursor",
+  "tagline": "Because you were going to look at your cursor anyway.",
+  "description": "A halo round your mouse cursor in the colour of your build: green while it passes, amber while a pull request waits, red while it's broken, breathing while it runs. The real cursor is never touched — it's a click-through window that follows the mouse, so nothing needs putting back when you quit. A reference consumer of the Greenlight SDK, in which the whole integration is about twenty lines.",
+  "author": {
+    "name": "The Meddling Idiot"
+  },
+  "repository": "https://github.com/meddlingidiot/MeddlingIdiot.Greenlight.CursorClient",
+  "license": "MIT",
+  "platforms": [
+    "windows"
+  ],
+  "language": "C#",
+  "integration": "sdk",
+  "greenlight-api": 1,
+  "build-time": "an evening",
+  "assets": {
+    "poster": "poster.jpg",
+    "clip": "clip.mp4",
+    "attestation": "original"
+  },
+  "last-verified": {
+    "date": "2026-09-20",
+    "greenlight": "1.0.24",
+    "sdk": "1.2.0"
+  },
+  "maintained": true
+}

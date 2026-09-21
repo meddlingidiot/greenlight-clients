@@ -1,0 +1,30 @@
+{
+  "$schema": "../../schema/listing.schema.json",
+  "slug": "logo",
+  "name": "Logo",
+  "tagline": "A logo. On your desktop. That glows. Green when the build passes, red when it doesn't.",
+  "description": "Your logo on the desktop, lit by your CI — green while everything passes, yellow while a pull request wants you, red when a pipeline breaks. The glow is cut from the picture's own alpha channel, so it's the shape of your logo instead of a rectangle behind it. Bring any PNG. A reference consumer of the Greenlight SDK, in which the whole integration is about twenty lines.",
+  "author": {
+    "name": "The Meddling Idiot"
+  },
+  "repository": "https://github.com/meddlingidiot/MeddlingIdiot.Greenlight.LogoClient",
+  "license": "MIT",
+  "platforms": [
+    "windows"
+  ],
+  "language": "C#",
+  "integration": "sdk",
+  "greenlight-api": 1,
+  "build-time": "an evening",
+  "assets": {
+    "poster": "poster.jpg",
+    "clip": "clip.mp4",
+    "attestation": "original"
+  },
+  "last-verified": {
+    "date": "2026-09-20",
+    "greenlight": "1.0.24",
+    "sdk": "1.2.0"
+  },
+  "maintained": true
+}
