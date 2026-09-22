@@ -109,6 +109,12 @@ and the blink goes out with it: Auto owns the blink for as long as it runs. Whil
 Auto pad wears the colour of the phase it is in, so the cycle can be read off the strip without
 watching the thing it is driving.
 
+**Cursor**, set apart at the right end of the strip, puts the mouse pointer into snapshots and
+clips. It is off by default — a pointer parked wherever the last click left it is noise in most
+posters — and it has nothing to do with Greenlight, so it works even when the pads are greyed out.
+For a snapshot with the pointer somewhere useful, park it over the client and press Enter rather
+than clicking Snapshot, which would leave it on the button.
+
 Greenlight releases the hold the moment this tool's connection ends, so however you leave —
 Done, Esc, the ✕, Task Manager — the user's real light comes back. The buttons grey out, and
 say why, when the attached Greenlight doesn't offer the command: its local API set to

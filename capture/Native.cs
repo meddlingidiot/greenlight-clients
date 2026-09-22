@@ -91,6 +91,72 @@ internal static class Native
     public static extern bool BitBlt(IntPtr dest, int x, int y, int w, int h,
         IntPtr source, int sx, int sy, int rop);
 
+    // ── the pointer, for a still that asked for it ─────────────────────────────
+
+    private const int CursorShowing = 0x00000001;
+    private const int DiNormal = 0x0003;
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct CursorInfo
+    {
+        public int Size;
+        public int Flags;
+        public IntPtr Cursor;
+        public int X;
+        public int Y;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct IconInfo
+    {
+        public bool IsIcon;
+        public int HotspotX;
+        public int HotspotY;
+        public IntPtr Mask;
+        public IntPtr Colour;
+    }
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool GetCursorInfo(ref CursorInfo info);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool GetIconInfo(IntPtr icon, out IconInfo info);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool DrawIconEx(IntPtr hdc, int x, int y, IntPtr icon,
+        int width, int height, int step, IntPtr brush, int flags);
+
+    /// <summary>
+    /// Draws the pointer, as it is right now, into a grab whose top-left corner was
+    /// (<paramref name="originX"/>, <paramref name="originY"/>) on the desktop.
+    /// </summary>
+    /// <remarks>
+    /// BitBlt never includes it — the pointer is a hardware overlay, not part of the desktop
+    /// it is sitting on — so it has to be put back by hand. The position GetCursorInfo gives
+    /// is the hotspot, not the image's corner, hence the offset. A pointer outside the grab
+    /// simply draws off the edge of the bitmap, which clips it; nothing to check.
+    /// </remarks>
+    public static void DrawCursor(IntPtr hdc, int originX, int originY)
+    {
+        var info = new CursorInfo { Size = Marshal.SizeOf<CursorInfo>() };
+        if (!GetCursorInfo(ref info) || (info.Flags & CursorShowing) == 0 || info.Cursor == IntPtr.Zero)
+            return;
+
+        var hotspotX = 0;
+        var hotspotY = 0;
+        if (GetIconInfo(info.Cursor, out var icon))
+        {
+            hotspotX = icon.HotspotX;
+            hotspotY = icon.HotspotY;
+            // GetIconInfo hands over copies of both bitmaps, and they are ours to free.
+            if (icon.Mask != IntPtr.Zero) DeleteObject(icon.Mask);
+            if (icon.Colour != IntPtr.Zero) DeleteObject(icon.Colour);
+        }
+
+        DrawIconEx(hdc, info.X - hotspotX - originX, info.Y - hotspotY - originY,
+            info.Cursor, 0, 0, 0, IntPtr.Zero, DiNormal);
+    }
+
     [DllImport("user32.dll", SetLastError = true)]
     private static extern IntPtr GetWindowLongPtrW(IntPtr hWnd, int nIndex);
 

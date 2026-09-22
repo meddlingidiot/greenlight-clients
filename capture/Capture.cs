@@ -36,6 +36,16 @@ internal static class Capture
     public static readonly int[] ClipLengths = [ClipSeconds, SchemaClipSeconds, 30, 60, 120];
 
     /// <summary>
+    /// Whether the pointer goes into the picture — the still and the clip alike.
+    /// </summary>
+    /// <remarks>
+    /// Off unless asked. A listing's poster is a picture of the client, and a pointer parked
+    /// wherever the last click left it is noise in it. The occasional client that is
+    /// <i>about</i> the pointer is the exception, and the state strip has the switch.
+    /// </remarks>
+    public static bool IncludeCursor { get; set; }
+
+    /// <summary>
     /// Grabs the framed region and writes a JPEG that fits the 1 MB limit.
     /// </summary>
     /// <remarks>
@@ -87,6 +97,7 @@ internal static class Capture
         {
             Native.BitBlt(memory, 0, 0, box.Width, box.Height, screen, box.X, box.Y,
                 Native.SrcCopy | Native.CaptureBlt);
+            if (IncludeCursor) Native.DrawCursor(memory, box.X, box.Y);
             return Image.FromHbitmap(handle);
         }
         finally
@@ -161,7 +172,7 @@ internal static class Capture
 
         var arguments =
             $"-hide_banner -loglevel error -y " +
-            $"-f gdigrab -framerate 30 -draw_mouse 0 " +
+            $"-f gdigrab -framerate 30 -draw_mouse {(IncludeCursor ? 1 : 0)} " +
             $"-offset_x {box.X} -offset_y {box.Y} -video_size {box.Width}x{box.Height} " +
             $"-i desktop -t {seconds} " +
             $"-an -c:v libx264 -preset veryfast -pix_fmt yuv420p " +

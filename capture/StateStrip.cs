@@ -95,6 +95,10 @@ public sealed class StateStrip : Window
     private readonly Button _red;
     private readonly Button _blink;
     private readonly Button _auto;
+    private readonly Button _cursor;
+
+    /// <summary>The cursor switch is not a status, so it borrows no status's colour.</summary>
+    private static readonly Color CursorColour = Color.FromRgb(0xE6, 0xF2, 0xEA);
 
     private GreenlightStatus? _held;
     private bool _pretendBuilding;
@@ -160,6 +164,26 @@ public sealed class StateStrip : Window
 
         _auto.Click += async (_, _) => await ToggleAuto();
 
+        // Nothing to do with Greenlight, so it sits apart from the pads and stays pressable
+        // when they are not. It lives here rather than on the panel because this is the one
+        // window that is always up, never in the shot, and within reach mid-capture — and
+        // because it is rarely wanted, a small switch on the end is as prominent as it
+        // deserves to be.
+        _cursor = new Button
+        {
+            Content = "Cursor", Padding = new Thickness(8, 5), FontSize = 12,
+            HorizontalContentAlignment = HorizontalAlignment.Center,
+        };
+        ToolTip.SetTip(_cursor, "Include the mouse pointer in snapshots and clips");
+        _cursor.Click += (_, _) =>
+        {
+            Capture.IncludeCursor = !Capture.IncludeCursor;
+            Paint();
+            _why.Text = Capture.IncludeCursor
+                ? "The pointer is in the picture — snapshots and clips both."
+                : "The pointer is left out of the picture.";
+        };
+
         // Seven pads and a line of text leave nothing obvious to take hold of, and this
         // does have to be movable: the corner it starts in is the right corner most of the
         // time and in the way the rest of it — a client that lives up there, or a
@@ -177,7 +201,16 @@ public sealed class StateStrip : Window
         var row = new StackPanel
         {
             Orientation = Orientation.Horizontal, Spacing = 6,
-            Children = { grip, _live, _grey, _green, _amber, _red, _blink, _auto },
+            Children =
+            {
+                grip, _live, _grey, _green, _amber, _red, _blink, _auto,
+                new Border
+                {
+                    Width = 1, Margin = new Thickness(4, 2),
+                    Background = new SolidColorBrush(Color.FromRgb(0x3A, 0x46, 0x3F)),
+                },
+                _cursor,
+            },
         };
 
         var chassis = new Border
@@ -337,6 +370,8 @@ public sealed class StateStrip : Window
         Light(_auto, _cycling is null ? AutoColour : Colour(_phase), _cycling is not null);
         _auto.Content = _cycling is null ? "Auto" : "Stop auto";
         _blink.Content = _pretendBuilding && _cycling is null ? "Stop blink" : "Blinking";
+
+        Light(_cursor, CursorColour, Capture.IncludeCursor);
     }
 
     private static void Light(Button button, Color colour, bool lit)
