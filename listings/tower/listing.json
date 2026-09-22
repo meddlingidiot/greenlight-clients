@@ -1,0 +1,30 @@
+{
+  "$schema": "../../schema/listing.schema.json",
+  "slug": "tower",
+  "name": "Tower",
+  "tagline": "Little people build a tower when it is green, it sways when yellow, and falls down when red.",
+  "description": "A tiny crew builds a tower on your taskbar, one course of bricks at a time, for as long as the build stays green. They work faster while a CI run is going, and a flag goes up when it is finished. Yellow means tools down: everyone stops and stares up while the tower sways, further the taller it got. Red brings it all down, bricks bouncing into a heap, and the crew runs around screaming \"WHO BROKE IT?!\" until the pipeline is fixed. Then somebody says \"Right. Again.\" and they start over from the ground. Break the build and you lose the tower.",
+  "author": {
+    "name": "Richelle Lanphear (Meddling Idiot's Wife)"
+  },
+  "repository": "https://github.com/meddlingidiot/MeddlingIdiot.Greenlight.TowerClient",
+  "license": "MIT",
+  "platforms": [
+    "windows"
+  ],
+  "language": "C#",
+  "integration": "sdk",
+  "greenlight-api": 1,
+  "build-time": "an evening",
+  "assets": {
+    "poster": "poster.jpg",
+    "clip": "clip.mp4",
+    "attestation": "original"
+  },
+  "last-verified": {
+    "date": "2026-09-21",
+    "greenlight": "1.0.24",
+    "sdk": "1.2.0"
+  },
+  "maintained": true
+}
