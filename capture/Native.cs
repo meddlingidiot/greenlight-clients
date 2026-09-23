@@ -227,6 +227,22 @@ internal static class Native
     public static bool ExcludeFromCapture(IntPtr hwnd) =>
         hwnd != IntPtr.Zero && SetWindowDisplayAffinity(hwnd, WdaExcludeFromCapture);
 
+    // ── hotkeys, for a shutter that works while something else has the keyboard ────
+
+    public const int WmHotkey = 0x0312;
+
+    public const uint ModAlt = 0x0001;
+    public const uint ModControl = 0x0002;
+
+    /// <summary>Held down is one press. Without it a leant-on key is a burst of them.</summary>
+    public const uint ModNoRepeat = 0x4000;
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern bool RegisterHotKey(IntPtr hWnd, int id, uint modifiers, uint key);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern bool UnregisterHotKey(IntPtr hWnd, int id);
+
     /// <summary>Keeps the window out of Alt+Tab. It is furniture, not a destination.</summary>
     public static void MakeToolWindow(IntPtr hwnd)
     {

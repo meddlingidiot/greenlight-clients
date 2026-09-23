@@ -30,6 +30,20 @@ public sealed class PanelWindow : Window
 
     private string? _posterPath;
     private Action? _shoot;
+
+    /// <summary>
+    /// Start or stop a recording, when there is a shoot page for it to mean something on.
+    /// </summary>
+    /// <remarks>
+    /// The same door the Record button goes through, kept here so the hotkey can use it
+    /// without holding on to buttons that are rebuilt every time the page is.
+    /// </remarks>
+    private Action? _roll;
+
+    private Hotkeys? _hotkeys;
+
+    /// <summary>The shoot page's status line, for the few things said from outside it.</summary>
+    private TextBlock? _status;
     private string? _clipPath;
     private string _greenlightVersion = "";
     private string? _sdkVersion;
@@ -181,6 +195,11 @@ public sealed class PanelWindow : Window
         return (row, box);
     }
 
+    private void Say(string what)
+    {
+        if (_status is not null) _status.Text = what;
+    }
+
     private void StayAboveTheFrame()
     {
         Native.RaiseWithoutFocus(TryGetPlatformHandle()?.Handle ?? IntPtr.Zero);
@@ -236,6 +255,13 @@ public sealed class PanelWindow : Window
     {
         base.OnOpened(e);
         _invisibleToCapture = Native.ExcludeFromCapture(TryGetPlatformHandle()?.Handle ?? IntPtr.Zero);
+
+        // Posted to this window, so they arrive whatever has focus — and whether or not this
+        // window is on screen at the time. Both go through the same doors the buttons do, so
+        // a press with no shoot page under it is a press that does nothing.
+        _hotkeys = new Hotkeys(this, () => _shoot?.Invoke(), () => _roll?.Invoke());
+        if (_hotkeys.Trouble is { } trouble) Dispatcher.UIThread.Post(() => Say(trouble));
+
         AdoptByTheFrame();
         StayAboveTheFrame();
     }
@@ -403,7 +429,11 @@ public sealed class PanelWindow : Window
         StayAboveTheFrame();
         _body.Children.Clear();
 
-        var status = Note("");
+        // The keys are the only part of this tool with nothing on screen to give them away,
+        // so the line that is otherwise empty until something happens says them.
+        var status = Note($"{Hotkeys.SnapshotChord} takes the still, {Hotkeys.RecordChord} starts and "
+                          + "stops a clip — from anywhere, so the app being photographed can keep the focus.");
+        _status = status;
         var poster = Action("Snapshot", primary: true);
         var record = Action(RecordLabel);
         var length = Action(LengthLabel);
@@ -426,6 +456,13 @@ public sealed class PanelWindow : Window
                   + "rather than attached to the listing.";
         };
 
+        // The keys are worth saying on the buttons themselves: the whole point of them is to
+        // be pressed while this window is somewhere else, or hidden, and nobody goes looking
+        // for a hotkey they have not been told about.
+        ToolTip.SetTip(poster, $"Take the still ({Hotkeys.SnapshotChord}, from anywhere)");
+        ToolTip.SetTip(record, $"Start or stop recording ({Hotkeys.RecordChord}, from anywhere). "
+                               + "Hold to unlock longer takes.");
+
         HoldToUnlock(record, length, status);
 
         _shoot = async () =>
@@ -435,8 +472,9 @@ public sealed class PanelWindow : Window
             status.Text = $"Poster saved. {new FileInfo(_posterPath!).Length / 1024} KB, comfortably inside the 1 MB limit.";
             next.IsEnabled = true;
         };
+        _roll = async void () => await Record(record, poster, next, status);
         poster.Click += (_, _) => _shoot?.Invoke();
-        record.Click += async (_, _) => await Record(record, poster, next, status);
+        record.Click += (_, _) => _roll?.Invoke();
         next.Click += (_, _) => ShowDetailsPage();
 
         var mode = Action(_fullscreen ? "Frame a region" : "Whole screen");
@@ -537,10 +575,13 @@ public sealed class PanelWindow : Window
         row.Children.Add(QuitButton());
 
         status.MaxWidth = 520;
-        status.Text = _invisibleToCapture
-            ? "The whole screen is the shot. This bar is not in it."
+        // The keys are worth repeating here above anywhere else: this is the mode where the
+        // bar hides itself mid-capture, and a hidden bar is a bar with nothing to press.
+        status.Text = (_invisibleToCapture
+            ? "The whole screen is the shot. This bar is not in it. "
             : "The whole screen is the shot. This Windows cannot hide the bar from a capture, so it "
-              + "disappears while the shutter works.";
+              + "disappears while the shutter works. ")
+            + $"{Hotkeys.SnapshotChord} shoots, {Hotkeys.RecordChord} rolls.";
 
         _body.Children.Add(row);
         _body.Children.Add(status);
@@ -685,8 +726,10 @@ public sealed class PanelWindow : Window
         poster.IsEnabled = next.IsEnabled = false;
         record.Content = "■ Stop";
         status.Text = hidden
-            ? $"Recording with the panel hidden, so it ends itself at {seconds} seconds."
-            : $"Recording. Stop when the client has said its piece; {seconds} seconds is the cap.";
+            ? $"Recording with the panel hidden. {Hotkeys.RecordChord} stops it; failing that it ends "
+              + $"itself at {seconds} seconds."
+            : $"Recording. Stop when the client has said its piece — the button or {Hotkeys.RecordChord}; "
+              + $"{seconds} seconds is the cap.";
 
         var ticker = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
         ticker.Tick += (_, _) => record.Content = $"■ Stop  {recording.Elapsed.TotalSeconds:0}s";
@@ -747,6 +790,7 @@ public sealed class PanelWindow : Window
         // boxes for focus. Back brings it back.
         _viewfinder.Hide();
         _shoot = null;
+        _roll = null;
         _body.Children.Clear();
         _body.Children.Add(Chrome("Five things, then you are done"));
 
@@ -953,6 +997,8 @@ public sealed class PanelWindow : Window
         if (e.Cancel) return;
 
         _closing = true;
+        // Before the window is destroyed, while there is still something to take the hook off.
+        _hotkeys?.Dispose();
         Native.ClearOwner(TryGetPlatformHandle()?.Handle ?? IntPtr.Zero);
         Native.ClearOwner(_states.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero);
     }

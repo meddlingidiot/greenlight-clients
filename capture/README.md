@@ -25,6 +25,20 @@ Or press **Whole screen** and skip the framing entirely.
 Then answer five questions — name, one line, a paragraph, your name, your repository — and it
 writes `listings/<slug>/` with the manifest and the assets, ready to validate and commit.
 
+## The shutter, without the click
+
+**Ctrl+Alt+F9** takes the still and **Ctrl+Alt+F10** starts and stops a clip, from anywhere on
+the machine — the app being photographed can keep the keyboard, and the click it would have
+cost to reach a button is a click it still gets to react to. They work while the panel is
+hidden for a whole-screen capture too, which used to be the one moment a recording could not be
+stopped; before this it only ended by running out its cap.
+
+Three keys deep because a system-wide hotkey takes the combination away from every other app
+for as long as the tool is open. Ctrl+Alt+S is JetBrains' Settings and a bare F9 or F10 is a
+debugger's, which is exactly the app you are most likely to be breaking a build in. If
+something else already holds one of the two, the tool says so in its status line and the
+buttons still work.
+
 ## Why the hole is a hole
 
 `SetWindowRgn` removes the frame's interior from the window entirely. A merely *transparent*
