@@ -2,8 +2,8 @@
   "$schema": "../../schema/listing.schema.json",
   "slug": "laser-sabre",
   "name": "Laser Sabre",
-  "tagline": "A familiar looking sword that pulses and changes color with the build.",
-  "description": "You can move resize and reorient it",
+  "tagline": "A familiar-looking sword. Any resemblance to a certain galaxy is purely coincidental.",
+  "description": "A sword stands on your desktop and switches sides with your build: a brushed-steel hilt burning green while everything passes, a brass one in amber when a pull request wants you, and a dark crossguard glowing red when someone breaks the pipeline. We won't name names. With no Greenlight to ask, the blade goes in and the hilt stays, so it looks switched off rather than crashed. Stand it upright, lean it, or lay it across the screen. Can you swing it? No. It's a picture. Calm down.",
   "author": {
     "name": "The Meddling Idiot"
   },

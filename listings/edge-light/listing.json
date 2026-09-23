@@ -2,8 +2,8 @@
   "$schema": "../../schema/listing.schema.json",
   "slug": "edge-light",
   "name": "EdgeLight",
-  "tagline": "A subtle indicator at the edge of your screen.",
-  "description": "You can adjust the thickness and wheither it has the popin alarm.",
+  "tagline": "Two pixels of build status. We'd apologise for the excess, but there isn't any.",
+  "description": "Other clients get cars, swords and explosions. This one gets a line. One to five pixels along any edge of your screen, green while everything passes, amber while a pull request sulks, breathing gently while a build runs. No window, no clicks, no desk space, no personality. You'll forget it's there, which is the point. Only a broken build earns a little drama: an old rotating hazard light slides out of the edge and spins until someone fixes it. Too much? Switch it off and enjoy your line.",
   "author": {
     "name": "The Meddling Idiot"
   },

@@ -2,8 +2,8 @@
   "$schema": "../../schema/listing.schema.json",
   "slug": "wallpaper",
   "name": "Wallpaper",
-  "tagline": "You wallpaper changes with the 4 build colors.",
-  "description": "It doesn't do anthing for building, what do you want a strobe light?",
+  "tagline": "Your entire desktop, turned the colour of your build. Subtle, it is not.",
+  "description": "Green when everything passes, amber when a pull request wants you, red when a pipeline breaks, grey when Greenlight isn't running. Four pictures and that's your lot. It ignores builds starting, because a wallpaper that changed on every push wouldn't be a status light, it would be a strobe, and nobody wants that. It's also the one client that borrows something of yours, so it saves your real wallpaper to disk first and puts it back when you quit. Your cat photo is safe.",
   "author": {
     "name": "The Meddling Idiot"
   },

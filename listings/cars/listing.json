@@ -2,8 +2,8 @@
   "$schema": "../../schema/listing.schema.json",
   "slug": "cars",
   "name": "Cars",
-  "tagline": "Cars that pile up at a red light when the build breaks.",
-  "description": "They also obey the traffic rules and honk at you when you have a pull request.",
+  "tagline": "Rush hour on your taskbar, conveniently caused by whoever broke the build.",
+  "description": "Little cars cruise along your taskbar while the build is green, blissfully unaware. Amber slows them to a crawl and they start honking BEEP BEEP, as if that ever helped. Red stops them dead at the light, and the longer the build stays broken the longer the queue gets, until the road is one long monument to your mistake. Fix it and they drive off one at a time, no hard feelings. No Greenlight running? They park. Five cars by default, and the road can run on, across or under your taskbar.",
   "author": {
     "name": "The Meddling Idiot"
   },

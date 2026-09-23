@@ -1,9 +1,9 @@
 {
   "$schema": "../../schema/listing.schema.json",
   "slug": "nuclear-fallout",
-  "name": "nuclear fallout",
-  "tagline": "A nuclear fallout themed BIL for Greenlight",
-  "description": "It shows a trefoil and a nuclear explosion on a broken build. pulses while building.",
+  "name": "Nuclear Fallout",
+  "tagline": "A calm, glowing trefoil. Right up until somebody breaks the build.",
+  "description": "It sits on your desktop minding its own business: green while everything passes, yellow while a pull request wants you, pulsing while a build runs. Then a pipeline breaks and it goes off. White flash, fireball, shock wave, mushroom cloud, the works. Proportionate? No. Satisfying? Very. When the dust settles a small red trefoil keeps glowing until someone cleans up the fallout. With no Greenlight running it goes grey. Move it, resize it, and crank the glow if your desk needs more drama.",
   "author": {
     "name": "The Meddling Idiot"
   },

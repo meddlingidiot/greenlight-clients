@@ -2,8 +2,8 @@
   "$schema": "../../schema/listing.schema.json",
   "slug": "lava-light",
   "name": "Lava Light",
-  "tagline": "A 70's style lava light that pulses and changes color with the build.",
-  "description": "It has several properties that can be changed. It can be moved and resized.",
+  "tagline": "A 70s lava light, because your build status deserved a shag-carpet makeover.",
+  "description": "Groovy wax drifts about in green while everything passes and amber while a pull request waits, and the whole thing breathes while a build runs, man. Break the build and it hits a rolling boil, hotter bulb and angrier wax, until you fix it. It even takes a few seconds to warm up, just like the real thing, because authenticity matters. With no Greenlight running it sits there cold and grey, like a lava light at a garage sale. Move it, resize it, and decide how lively the wax gets.",
   "author": {
     "name": "The Meddling Idiot"
   },
