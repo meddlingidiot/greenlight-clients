@@ -1,0 +1,30 @@
+{
+  "$schema": "../../schema/listing.schema.json",
+  "slug": "teststrip",
+  "name": "TestStrip",
+  "tagline": "A simple build status \"override-er\" for testing your Greenlight Client.",
+  "description": "You could find out whether your shiny new client actually goes red by breaking the build on purpose. Your team would love that. Or you could press a button. Five pads and a toggle: grey, green, amber, red, and BUILDING for when you want everything blinking at you. Press one and every light Greenlight drives, from the tray icon to the lamps to every client you've attached, is forced to agree with you, whatever the pipeline actually thinks. It's a lie with a very convincing glow. The hold only lasts as long as the strip is open, so a crashed tester can't leave your light fibbing all afternoon. Press the lit pad again, or close it, and reality comes back, which is usually the less pleasant option.",
+  "author": {
+    "name": "The Meddling Idiot"
+  },
+  "repository": "https://github.com/meddlingidiot/MeddlingIdiot.Greenlight.TestStrip",
+  "license": "MIT",
+  "platforms": [
+    "windows"
+  ],
+  "language": "C#",
+  "integration": "sdk",
+  "greenlight-api": 1,
+  "build-time": "an evening",
+  "assets": {
+    "poster": "poster.jpg",
+    "clip": "clip.mp4",
+    "attestation": "original"
+  },
+  "last-verified": {
+    "date": "2026-09-24",
+    "greenlight": "1.0.28",
+    "sdk": "1.2.0"
+  },
+  "maintained": true
+}
