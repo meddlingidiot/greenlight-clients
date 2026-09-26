@@ -101,6 +101,22 @@ The poster comes out at the monitor's own size and aspect — 3440×1440 stays 3
 schema has never asked for 16:9; the *frame* keeps 16:9 because a card looks better that way,
 and a monitor is whatever the monitor is.
 
+### Screenshotting the tool itself
+
+That exclusion is machine-wide. Snipping Tool, a screen recorder and a Teams share see
+straight through the panel and the state strip just as the tool's own shutter does, which is
+right for making a listing and useless for showing somebody the tool, or for a bug report
+about it.
+
+```bash
+dotnet run -- --show-in-captures
+```
+
+turns the exclusion off, and the tool behaves exactly as it does on a Windows too old to offer
+it: both windows appear in any screenshot, the panel steps out of the tool's own whole-screen
+shots while the shutter works, and the state strip is in them. The whole-screen status line
+says the switch is on, so nobody makes a listing with the strip in the corner by accident.
+
 ## Making something happen
 
 A clip of a client sitting green is a clip of nothing happening. The state strip in the corner —

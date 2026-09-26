@@ -225,7 +225,20 @@ internal static class Native
     /// did everywhere before.
     /// </remarks>
     public static bool ExcludeFromCapture(IntPtr hwnd) =>
-        hwnd != IntPtr.Zero && SetWindowDisplayAffinity(hwnd, WdaExcludeFromCapture);
+        !ShowInCaptures && hwnd != IntPtr.Zero && SetWindowDisplayAffinity(hwnd, WdaExcludeFromCapture);
+
+    /// <summary>
+    /// Set by <c>--show-in-captures</c>: leave the panel and the state strip visible to every
+    /// screen capture, for screenshotting the tool itself.
+    /// </summary>
+    /// <remarks>
+    /// The exclusion is machine-wide, not just ours — Snipping Tool, a screen recorder and a
+    /// Teams share all see straight through the panel too, which makes the tool impossible to
+    /// show anybody. Declining it here puts the tool on exactly the path an older Windows takes
+    /// when it refuses the call, so there is no third way of behaving to go wrong: the panel
+    /// steps out of whole-screen shots, and the strip is photographed like anything else.
+    /// </remarks>
+    public static bool ShowInCaptures { get; set; }
 
     // ── hotkeys, for a shutter that works while something else has the keyboard ────
 

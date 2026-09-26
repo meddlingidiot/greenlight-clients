@@ -579,8 +579,11 @@ public sealed class PanelWindow : Window
         // bar hides itself mid-capture, and a hidden bar is a bar with nothing to press.
         status.Text = (_invisibleToCapture
             ? "The whole screen is the shot. This bar is not in it. "
-            : "The whole screen is the shot. This Windows cannot hide the bar from a capture, so it "
-              + "disappears while the shutter works. ")
+            : Native.ShowInCaptures
+                ? "The whole screen is the shot. --show-in-captures is on, so this bar steps out of the "
+                  + "shot while the shutter works, and the state strip is in it. "
+                : "The whole screen is the shot. This Windows cannot hide the bar from a capture, so it "
+                  + "disappears while the shutter works. ")
             + $"{Hotkeys.SnapshotChord} shoots, {Hotkeys.RecordChord} rolls.";
 
         _body.Children.Add(row);
